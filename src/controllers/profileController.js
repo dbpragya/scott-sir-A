@@ -85,7 +85,6 @@ exports.updateProfile = async (req, res) => {
   }
 };
 
-
 exports.getTotalEvents = async (req, res) => {
   try {
     const token = req.header('Authorization')?.replace('Bearer ', '');

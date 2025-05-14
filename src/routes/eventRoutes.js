@@ -1,11 +1,30 @@
 const express = require("express");
 const router = express.Router();
-const {createEvent, getAllEvents, getEventById, getShareLink } = require("../controllers/eventController");
-const authenticateUser = require("../middleware/authmiddleware")
+const {
+  createEvent,
+  getAllEvents,
+  getEventById,
+  getShareLink,
+  handleInviteLink,
+  voteOnEvent,
+  getInvitedEvents
+} = require("../controllers/eventController");
 
+const authenticateUser = require("../middleware/authmiddleware");
+
+// Event creation
 router.post("/create", authenticateUser, createEvent);
-router.get("/", authenticateUser, getAllEvents);
-router.get("/:eventId", getEventById);
+
+// Specific routes first
+router.get('/invite', authenticateUser, handleInviteLink);
+router.get("/my-invites", authenticateUser, getInvitedEvents); 
+
+// Sharing and voting
 router.get("/:eventId/share-link", getShareLink);
+router.post('/:eventId/vote', authenticateUser, voteOnEvent);
+
+// General
+router.get("/", authenticateUser, getAllEvents);
+router.get("/:eventId", getEventById);  // 👈 leave dynamic route last
 
 module.exports = router;

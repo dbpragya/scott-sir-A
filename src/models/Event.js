@@ -24,6 +24,14 @@ const eventSchema = new mongoose.Schema({
       },
     }
   ],
+  votes: [
+  {
+    user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    date: String,
+  }
+],
+  invitedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+
   type: {
     type: String,
     enum: ["Planned", "Invited"],

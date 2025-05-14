@@ -1,4 +1,5 @@
 const Event = require("../models/Event");
+const jwt = require('jsonwebtoken');
 
 exports.createEvent = async (req, res) => {
   try {
@@ -59,7 +60,7 @@ exports.getAllEvents = async (req, res) => {
   }
 };
 
-
+// need to update this - to add the authenticated user and many more
 exports.getEventById = async (req, res) => {
   try {
     const event = await Event.findById(req.params.eventId);
@@ -87,5 +88,112 @@ exports.getShareLink = async (req, res) => {
   } catch (error) {
     console.error("Get Share Link Error:", error);
     res.status(500).json({ message: "Failed to generate share link" });
+  }
+};
+
+// route: GET /invite -need to be updated - the person 
+exports.handleInviteLink = async (req, res) => {
+  const { eventId } = req.query;
+
+  if (!eventId) {
+    return res.status(400).json({ message: "Missing event ID" });
+  }
+
+  try {
+    const event = await Event.findById(eventId);
+    if (!event) {
+      return res.status(404).json({ message: "Event not found" });
+    }
+
+    // Check for token
+    const token = req.headers.authorization?.split(" ")[1];
+
+
+    if (!token) {
+      return res.status(401).json({
+        message: "Please login/signup to view the event",
+        redirectTo: `/signup?redirect=/invite?eventId=${eventId}`,
+      });
+    }
+
+    // Verify token
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      req.user = decoded;
+    } catch (err) {
+      return res.status(401).json({ message: "Invalid token", error: err.message });
+    }
+
+    // Send event details
+    res.status(200).json({ status: true, event });
+
+  } catch (err) {
+    console.error("Invite Link Error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+
+exports.voteOnEvent = async (req, res) => {
+  const { eventId } = req.params;
+  const { selectedDate } = req.body;
+
+  try {
+    const event = await Event.findById(eventId);
+    if (!event) {
+      return res.status(404).json({ message: "Event not found" });
+    }
+
+    const alreadyVoted = event.votes.some(
+      vote => vote.user.toString() === req.user.id
+    );
+
+    if (alreadyVoted) {
+      return res.status(400).json({ message: "You already voted" });
+    }
+
+    // Add vote
+    event.votes.push({ user: req.user.id, date: selectedDate });
+
+    // Add user to invitedUsers if not already there
+    if (!event.invitedUsers.some(u => u.toString() === req.user.id)) {
+      event.invitedUsers.push(req.user.id);
+    }
+
+    await event.save();
+
+    res.status(200).json({ message: "Vote submitted" });
+
+  } catch (err) {
+    console.error("Vote Error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+exports.getInvitedEvents = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    console.log("Looking for events where user is invited or has voted:", userId);
+
+    // Find events where the user is either invited or has voted on the event
+    const events = await Event.find({
+      $or: [
+        { invitedUsers: userId },  // User is invited
+        { "votes.user": userId }    // User has voted
+      ]
+    });
+
+    // Check if events are found
+    if (events.length === 0) {
+      console.log("No invited/voted events found for user.");
+      return res.status(404).json({ message: "No invited or voted events found for the user." });
+    }
+
+    // Respond with the list of events
+    res.status(200).json({ events });
+
+  } catch (error) {
+    console.error("Get Invited Events Error:", error);
+    res.status(500).json({ message: "Server error" });
   }
 };
