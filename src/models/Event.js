@@ -31,7 +31,10 @@ const eventSchema = new mongoose.Schema({
   }
 ],
   invitedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
-
+  finalizedDate: {
+  date: Date,
+  timeSlot: String
+},
   type: {
     type: String,
     enum: ["Planned", "Invited"],

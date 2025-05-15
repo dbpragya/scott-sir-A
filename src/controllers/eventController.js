@@ -284,8 +284,6 @@ exports.getInvitedEventDetailsForVoting = async (req, res) => {
   }
 };
 
-
-
 exports.voteOnEvent = async (req, res) => {
   const { eventId } = req.params;
   const { selectedDate } = req.body;
@@ -336,8 +334,6 @@ console.log("Valid date object found:", validDateObj);
   }
 };
 
-
-
 exports.getInvitedEvents = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -364,5 +360,103 @@ exports.getInvitedEvents = async (req, res) => {
   } catch (error) {
     console.error("Get Invited Events Error:", error);
     res.status(500).json({ status: false, message: "Server error" });
+  }
+};
+
+exports.getVotersByDate = async (req, res) => {
+  try {
+    const { eventId } = req.params;
+    const { selectedDate } = req.query;  // Use query param for filtering
+
+    if (!selectedDate) {
+      return res.status(400).json({ message: "Please provide selectedDate query parameter." });
+    }
+
+    const event = await Event.findById(eventId).populate('votes.user', 'first_name profilePicture');
+
+    if (!event) {
+      return res.status(404).json({ message: "Event not found." });
+    }
+
+    // Check if requester is the event creator (optional, based on your auth policy)
+    if (event.createdBy.toString() !== req.user.id) {
+      return res.status(403).json({ message: "Only event creator can view voters for a date." });
+    }
+
+    const selectedDateISO = new Date(selectedDate).toISOString().split('T')[0];
+
+    // Filter votes for the selectedDate
+    const votersForDate = event.votes.filter(vote => {
+      const voteDateISO = new Date(vote.date).toISOString().split('T')[0];
+      return voteDateISO === selectedDateISO;
+    }).map(vote => ({
+      userId: vote.user._id,
+      name: vote.user.first_name,
+      profilePicture: vote.user.profilePicture || null
+    }));
+
+    res.status(200).json({
+      date: selectedDateISO,
+      voters: votersForDate,
+      totalVoters: votersForDate.length,
+    });
+  } catch (error) {
+    console.error("Get Voters By Date Error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+const createNotification = require('../utils/createNotification'); // Correct path to your utility
+
+exports.finalizeEventDate = async (req, res) => {
+  try {
+    const { eventId } = req.params;
+    const { selectedDate } = req.body;
+
+    if (!selectedDate) {
+      return res.status(400).json({ message: "Please provide the selected date to finalize." });
+    }
+
+    const event = await Event.findById(eventId).populate('votes.user', '_id first_name');
+
+    if (!event) {
+      return res.status(404).json({ message: "Event not found." });
+    }
+
+    if (event.createdBy.toString() !== req.user.id) {
+      return res.status(403).json({ message: "Access denied. Only event creator can finalize the date." });
+    }
+
+    const selectedDateISO = new Date(selectedDate).toISOString().split('T')[0];
+    const dateOption = event.dates.find(d => new Date(d.date).toISOString().split('T')[0] === selectedDateISO);
+
+    if (!dateOption) {
+      return res.status(400).json({ message: "Selected date option not found in event." });
+    }
+
+    event.finalizedDate = {
+      date: new Date(selectedDateISO),
+      timeSlot: dateOption.timeSlot,
+    };
+
+    await event.save();
+
+    const title = "Event is Confirmed!";
+    const message = `The event ${event.name} has been finalized for ${selectedDateISO}. See you there!`;
+
+    const votersForDate = event.votes.filter(vote => {
+      const voteDateISO = new Date(vote.date).toISOString().split('T')[0];
+      return voteDateISO === selectedDateISO;
+    });
+
+    // Create notification for each voter
+    await Promise.all(votersForDate.map(vote => 
+      createNotification(vote.user._id, title, message)
+    ));
+
+    res.status(200).json({ message: "Date finalized successfully.", finalizedDate: event.finalizedDate });
+  } catch (error) {
+    console.error("Finalize Event Date Error:", error);
+    res.status(500).json({ message: "Server error" });
   }
 };
