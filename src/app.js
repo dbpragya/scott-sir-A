@@ -13,5 +13,6 @@ app.use(express.json());
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/events', require('./routes/eventRoutes')); 
 app.use('/api/userprofile', require('./routes/profileRoutes')); 
+app.use('/api/notifications', require('./routes/notificationRoutes')); 
 
-module.exports = app;
+module.exports = app;   

@@ -8,7 +8,9 @@ const {
   handleInviteLink,
   voteOnEvent,
   getInvitedEvents,
-  getInvitedEventDetailsForVoting
+  getInvitedEventDetailsForVoting,
+  getVotersByDate,
+  finalizeEventDate
 } = require("../controllers/eventController");
 
 const authenticateUser = require("../middleware/authmiddleware");
@@ -29,5 +31,10 @@ router.get("/", authenticateUser, getAllEvents);
 router.get("/:eventId", authenticateUser, getEventById);
 
 router.get('/:eventId/vote-info', authenticateUser, getInvitedEventDetailsForVoting);
+
+router.get('/:eventId/voters', authenticateUser, getVotersByDate);
+
+router.post('/:eventId/finalize', authenticateUser, finalizeEventDate);
+
 
 module.exports = router;
