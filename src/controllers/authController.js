@@ -98,13 +98,17 @@ const createPassword = async (req, res) => {
       return res.status(400).json({ status: false, message: "Passwords do not match." });
     }
 
-    const token = req.header('Authorization')?.replace('Bearer ', ''); 
-
+    const token = req.header('Authorization')?.replace('Bearer ', '');
     if (!token) {
       return res.status(401).json({ status: false, message: "No token, access denied" });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (err) {
+      return res.status(401).json({ status: false, message: "Invalid or expired token" });
+    }
 
     const user = await User.findById(decoded.id);
     if (!user) {
@@ -114,8 +118,9 @@ const createPassword = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     user.password = hashedPassword;
-    user.isVerify = true; 
+    user.isVerify = true;
     await user.save();
+    console.log("Password saved for user:", user._id);
 
     res.status(200).json({
       status: true,
@@ -126,6 +131,7 @@ const createPassword = async (req, res) => {
     res.status(500).json({ status: false, message: "Server error" });
   }
 };
+
 
 
 const resendOtp = async(req,res)=>{
@@ -169,6 +175,10 @@ const login = async (req, res) => {
       return res.status(400).json({ status: false, message: "Invalid email or password" });
     }
 
+    if (typeof user.password !== 'string') {
+      return res.status(500).json({ status: false, message: "Stored password is invalid." });
+    }
+
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(400).json({ status: false, message: "Invalid email or password" });
@@ -183,7 +193,7 @@ const login = async (req, res) => {
     res.status(200).json({
       status: true,
       message: "Login successful",
-      token,  
+      token,
     });
 
   } catch (error) {
