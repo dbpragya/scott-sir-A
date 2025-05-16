@@ -284,9 +284,12 @@ exports.getInvitedEventDetailsForVoting = async (req, res) => {
   }
 };
 
+const Group = require("../models/Group"); // Import your Group model
+
 exports.voteOnEvent = async (req, res) => {
   const { eventId } = req.params;
   const { selectedDate } = req.body;
+  const userId = req.user.id;
 
   try {
     const event = await Event.findById(eventId);
@@ -294,7 +297,7 @@ exports.voteOnEvent = async (req, res) => {
       return res.status(404).json({ status: false, message: "Event not found" });
     }
 
-    if (event.createdBy.toString() === req.user.id) {
+    if (event.createdBy.toString() === userId) {
       return res.status(403).json({ status: false, message: "Event creator cannot vote for their own event." });
     }
 
@@ -302,31 +305,43 @@ exports.voteOnEvent = async (req, res) => {
       return res.status(400).json({ status: false, message: "Please select a date to vote." });
     }
 
-const validDateObj = event.dates.find(d => new Date(d.date).toISOString() === new Date(selectedDate).toISOString());
-if (!validDateObj) {
-  return res.status(400).json({ status: false, message: "Selected date is not valid for this event." });
-}
-console.log("hello")
-console.log("Valid date object found:", validDateObj);
+    const validDateObj = event.dates.find(d => new Date(d.date).toISOString() === new Date(selectedDate).toISOString());
+    if (!validDateObj) {
+      return res.status(400).json({ status: false, message: "Selected date is not valid for this event." });
+    }
 
-
-    const alreadyVoted = event.votes.some(
-      vote => vote.user.toString() === req.user.id
-    );
-
+    const alreadyVoted = event.votes.some(vote => vote.user.toString() === userId);
     if (alreadyVoted) {
       return res.status(400).json({ status: false, message: "You already voted" });
     }
 
-    event.votes.push({ user: req.user.id, date: selectedDate });
+    // Add the vote
+    event.votes.push({ user: userId, date: selectedDate });
 
-    if (!event.invitedUsers.some(u => u.toString() === req.user.id)) {
-      event.invitedUsers.push(req.user.id);
+    if (!event.invitedUsers.some(u => u.toString() === userId)) {
+      event.invitedUsers.push(userId);
     }
 
     await event.save();
 
-    res.status(200).json({ status: true, message: "Vote submitted", voteCount: event.votes.length });
+    // --- Group logic start ---
+
+    let group = await Group.findOne({ eventId });
+    if (!group) {
+      group = await Group.create({
+        eventId,
+        members: [userId],
+      });
+    } else {
+      if (!group.members.some(m => m.toString() === userId)) {
+        group.members.push(userId);
+        await group.save();
+      }
+    }
+
+    // --- Group logic end ---
+
+    res.status(200).json({ status: true, message: "Vote submitted", voteCount: event.votes.length, groupId: group._id });
 
   } catch (err) {
     console.error("Vote Error:", err);
@@ -406,7 +421,7 @@ exports.getVotersByDate = async (req, res) => {
   }
 };
 
-const createNotification = require('../utils/createNotification'); // Correct path to your utility
+const createNotification = require('../utils/createNotification');
 
 exports.finalizeEventDate = async (req, res) => {
   try {
@@ -449,7 +464,7 @@ exports.finalizeEventDate = async (req, res) => {
       return voteDateISO === selectedDateISO;
     });
 
-    // Create notification for each voter
+    // Create notification for each voter  
     await Promise.all(votersForDate.map(vote => 
       createNotification(vote.user._id, title, message)
     ));
