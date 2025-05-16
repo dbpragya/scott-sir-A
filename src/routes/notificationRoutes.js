@@ -6,3 +6,4 @@ const authenticateUser = require('../middleware/authmiddleware');
 router.get('/user-notifications', authenticateUser, getUserNotifications);
 
 module.exports = router;
+    
