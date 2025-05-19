@@ -13,8 +13,7 @@ router.put('/chat-notifications', authenticateUser, updateChatNotifications);
 
 // for premium plan
 router.get('/premium-plan', authenticateUser, getPlan);
-router.post('/purchase/:planId', authenticateUser, purchasePlan);
-
+router.post('/purchase', authenticateUser, purchasePlan);
 
 
 module.exports = router;
