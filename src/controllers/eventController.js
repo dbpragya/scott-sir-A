@@ -1,5 +1,8 @@
 const Event = require("../models/Event");
 const jwt = require('jsonwebtoken');
+const User = require('../models/User');
+const { checkTopPlannerBadge } = require('../utils/badgeUtils'); 
+const Group = require("../models/Group");
 
 exports.createEvent = async (req, res) => {
   try {
@@ -10,7 +13,32 @@ exports.createEvent = async (req, res) => {
     }
 
     const userId = req.user.id;
+    const user = await User.findById(userId);
 
+    if (!user) {
+      return res.status(404).json({ status: false, message: "User not found" });
+    }
+
+    const now = new Date();
+    const subscription = user.subscription;
+
+    // Check if user has active premium subscription
+    const hasPremium = subscription &&
+      subscription.status === 'active' &&
+      new Date(subscription.expiryDate) > now;
+
+    // If user is not premium, limit event creation to 1
+    if (!hasPremium) {
+      const existingEventsCount = await Event.countDocuments({ createdBy: userId });
+      if (existingEventsCount >= 1) {
+        return res.status(403).json({
+          status: false,
+          message: "Upgrade to premium to create unlimited events"
+        });
+      }
+    }
+
+    // Premium user or first event for free user
     const newEvent = new Event({
       name,
       location,
@@ -19,10 +47,13 @@ exports.createEvent = async (req, res) => {
       theme,
       dates,
       type: "Planned",
-      createdBy: userId,  
+      createdBy: userId,
     });
 
     await newEvent.save();
+
+    // Check and award Top Planner Badge if eligible
+    await checkTopPlannerBadge(userId);
 
     res.status(201).json({ status: true, message: "Event created successfully", event: newEvent });
 
@@ -31,7 +62,6 @@ exports.createEvent = async (req, res) => {
     res.status(500).json({ status: false, message: "Server error" });
   }
 };
-
 
 exports.getAllEvents = async (req, res) => {
   try {
@@ -284,7 +314,7 @@ exports.getInvitedEventDetailsForVoting = async (req, res) => {
   }
 };
 
-const Group = require("../models/Group"); // Import your Group model
+const { checkSpeedyVoterBadge } = require('../utils/badgeUtils'); // Import badge utils
 
 exports.voteOnEvent = async (req, res) => {
   const { eventId } = req.params;
@@ -325,7 +355,6 @@ exports.voteOnEvent = async (req, res) => {
     await event.save();
 
     // --- Group logic start ---
-
     let group = await Group.findOne({ eventId });
     if (!group) {
       group = await Group.create({
@@ -338,16 +367,18 @@ exports.voteOnEvent = async (req, res) => {
         await group.save();
       }
     }
-
     // --- Group logic end ---
 
-    res.status(200).json({ status: true, message: "Vote submitted", voteCount: event.votes.length, groupId: group._id });
+    // Award Speedy Voter Badge if criteria met
+    await checkSpeedyVoterBadge(userId);
 
+    res.status(200).json({ status: true, message: "Vote submitted", voteCount: event.votes.length, groupId: group._id });
   } catch (err) {
     console.error("Vote Error:", err);
     res.status(500).json({ status: false, message: "Server error" });
   }
 };
+
 
 exports.getInvitedEvents = async (req, res) => {
   try {
