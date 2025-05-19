@@ -24,5 +24,17 @@ router.get("/my-invites", authenticateUser, getInvitedEvents);
 
 // Sharing and voting
 router.get("/:eventId/share-link", getShareLink);
+router.post('/:eventId/vote', authenticateUser, voteOnEvent);
+
+// General
+router.get("/", authenticateUser, getAllEvents);
+router.get("/:eventId", authenticateUser, getEventById);
+
+router.get('/:eventId/vote-info', authenticateUser, getInvitedEventDetailsForVoting);
+
+router.get('/:eventId/voters', authenticateUser, getVotersByDate);
+
+router.post('/:eventId/finalize', authenticateUser, finalizeEventDate);
+
 
 module.exports = router;
