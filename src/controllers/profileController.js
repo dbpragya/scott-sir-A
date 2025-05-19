@@ -238,24 +238,20 @@ exports.getPlan = async (req, res) => {
 
 exports.purchasePlan = async (req, res) => {
   try {
-    const userId = req.user.id; 
-    const { planId } = req.params;
+    const userId = req.user.id;
     const { paymentId } = req.body;
 
     if (!paymentId) {
       return res.status(400).json({ message: 'paymentId is required' });
     }
 
-    // Optionally: Verify paymentId with your payment provider here
-
-    // Find user
     const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Find plan
-    const plan = await SubscriptionPlan.findById(planId);
+    // Fetch the single subscription plan
+    const plan = await SubscriptionPlan.findOne(); // First/only plan
     if (!plan) {
       return res.status(404).json({ message: 'Subscription plan not found' });
     }
@@ -280,6 +276,7 @@ exports.purchasePlan = async (req, res) => {
         expiryDate.setUTCFullYear(expiryDate.getUTCFullYear() + 1);
     }
 
+    // Extend if already active
     if (
       user.subscription &&
       user.subscription.status === 'active' &&
@@ -299,7 +296,7 @@ exports.purchasePlan = async (req, res) => {
       startDate: now,
       expiryDate,
       status: 'active',
-      paymentId // save for record
+      paymentId,
     };
 
     await user.save();
@@ -310,3 +307,4 @@ exports.purchasePlan = async (req, res) => {
     return res.status(500).json({ message: 'Server error' });
   }
 };
+
