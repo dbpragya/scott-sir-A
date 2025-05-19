@@ -7,7 +7,10 @@ const {
   getShareLink,
   handleInviteLink,
   voteOnEvent,
-  getInvitedEvents
+  getInvitedEvents,
+  getInvitedEventDetailsForVoting,
+  getVotersByDate,
+  finalizeEventDate
 } = require("../controllers/eventController");
 
 const authenticateUser = require("../middleware/authmiddleware");
@@ -21,10 +24,5 @@ router.get("/my-invites", authenticateUser, getInvitedEvents);
 
 // Sharing and voting
 router.get("/:eventId/share-link", getShareLink);
-router.post('/:eventId/vote', authenticateUser, voteOnEvent);
-
-// General
-router.get("/", authenticateUser, getAllEvents);
-router.get("/:eventId", getEventById);  // 👈 leave dynamic route last
 
 module.exports = router;
