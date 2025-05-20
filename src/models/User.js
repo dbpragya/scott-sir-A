@@ -14,16 +14,18 @@ const UserSchema = new mongoose.Schema({
   role: { type: String, enum: ["admin", "user"], default: "user" },
   allNotifications: { type: Boolean, default: true },
   chatNotifications: { type: Boolean, default: true },
+
   subscription: {
     planId: { type: mongoose.Schema.Types.ObjectId, ref: 'SubscriptionPlan' },
     startDate: { type: Date },
     expiryDate: { type: Date },
-    status: { type: String, enum: ['active', 'expired', 'cancelled'], default: 'active' }
+    status: { type: String, enum: ['active', 'expired', 'cancelled', 'none'], default: 'none' },
   },
+
   badges: [{
-  name: { type: String, required: true },
-  awardedAt: { type: Date, default: Date.now }
-}],
+    name: { type: String, required: true },
+    awardedAt: { type: Date, default: Date.now }
+  }],
 }, { timestamps: true });
 
 module.exports = mongoose.model("User", UserSchema);

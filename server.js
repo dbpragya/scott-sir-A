@@ -5,18 +5,15 @@ const Group = require("./src/models/Group");
 const Message = require("./src/models/Message");
 const User = require("./src/models/User");
 
-// Create HTTP server from Express app
 const server = http.createServer(app);
 
-// Initialize Socket.IO server
 const io = new Server(server, {
   cors: {
-    origin: "*", // update with your frontend URL in production
+    origin: "*",
     methods: ["GET", "POST"]
   }
 });
 
-// Middleware to authenticate socket connection (simplified)
 io.use((socket, next) => {
   const userId = socket.handshake.auth.userId;
   if (!userId) {
@@ -26,7 +23,6 @@ io.use((socket, next) => {
   next();
 });
 io.on("connection", (socket) => {
-  // When user joins group
   socket.on("joinGroup", async (groupId) => {
     try {
       const group = await Group.findById(groupId);
@@ -40,11 +36,9 @@ io.on("connection", (socket) => {
       }
       socket.join(groupId);
 
-      // Fetch user's name to notify others
       const user = await User.findById(socket.userId).select("first_name");
       const userName = user.first_name;
 
-      // Notify only the current user (join confirmation)
       socket.emit("joinedGroup", groupId);
 
       console.log(`Socket ${socket.id} joined group ${groupId}`);
@@ -61,14 +55,12 @@ io.on("connection", (socket) => {
         return;
       }
 
-      // Save message to DB
       const message = await Message.create({
         groupId,
         sender: socket.userId,
         text,
       });
 
-      // Fetch sender details
       const senderUser = await User.findById(socket.userId).select("first_name profilePicture");
 
       io.to(groupId).emit("newMessage", {
@@ -93,7 +85,6 @@ io.on("connection", (socket) => {
   });
 });
 
-// Start server listening
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`Server running on: http://localhost:${PORT}`);

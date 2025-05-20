@@ -9,11 +9,6 @@ const eventSchema = new mongoose.Schema({
     enum: ["24hrs", "48hrs"],
     required: true,
   },
-  theme: {
-    type: String,
-    enum: ["Lavender", "Make blue", "Sky blue", "Spicy red", "Summer", "Night light"],
-    required: true,
-  },
   dates: [
     {
       date: { type: Date, required: true },
@@ -25,20 +20,31 @@ const eventSchema = new mongoose.Schema({
     }
   ],
   votes: [
-  {
-    user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-    date: { type: Date, required: true },
-  }
-],
+    {
+      user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+      date: { type: Date, required: true },
+    }
+  ],
   invitedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   finalizedDate: {
-  date: Date,
-  timeSlot: String
-},
+    date: Date,
+    timeSlot: String
+  },
   type: {
     type: String,
     enum: ["Planned", "Invited"],
     default: "Planned",
+  },
+  invitationCustomization: {
+    colorScheme: {
+      type: String,
+      default: "#808080"  // Neutral gray as default color
+    },
+    premiumTheme: {
+      type: String,
+      enum: ["default", "christmas", "halloween", "graduation", "summer-bbq"],
+      default: "default"
+    }
   },
   createdAt: {
     type: Date,
