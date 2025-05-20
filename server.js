@@ -93,10 +93,6 @@ io.on("connection", (socket) => {
   });
 });
 
-app.use("/", (req, res) => {
-  res.send("Welcome to the server");
-});
-
 // Start server listening
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
