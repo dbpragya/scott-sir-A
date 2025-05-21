@@ -20,7 +20,7 @@ const SubscriptionPlanSchema = new mongoose.Schema({
   duration: { 
     type: String, 
     required: true, 
-    enum: ['day', 'week', 'month', 'year'], // restrict to valid durations
+    enum: ['day', 'week', 'month', 'year'],
   },
   description: { 
     type: String, 
@@ -40,7 +40,6 @@ const SubscriptionPlanSchema = new mongoose.Schema({
   }
 });
 
-// Middleware to update updatedAt on save
 SubscriptionPlanSchema.pre('save', function(next) {
   this.updatedAt = Date.now();
   next();
