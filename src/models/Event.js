@@ -35,17 +35,13 @@ const eventSchema = new mongoose.Schema({
     enum: ["Planned", "Invited"],
     default: "Planned",
   },
-  invitationCustomization: {
-    colorScheme: {
-      type: String,
-      default: "#808080"  // Neutral gray as default color
-    },
-    premiumTheme: {
-      type: String,
-      enum: ["default", "christmas", "halloween", "graduation", "summer-bbq"],
-      default: "default"
-    }
-  },
+ invitationCustomization: {
+  premiumTheme: {
+    type: String,
+    enum: ["Lavender", "Make blue", "sku blue", "spicy red", "summer", "night light"],
+    default: "Lavender"
+  }
+},
   createdAt: {
     type: Date,
     default: Date.now,
@@ -58,3 +54,4 @@ const eventSchema = new mongoose.Schema({
 });
 
 module.exports = mongoose.model("Event", eventSchema);
+

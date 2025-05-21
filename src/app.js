@@ -16,5 +16,6 @@ app.use('/api/userprofile', require('./routes/profileRoutes'));
 app.use('/api/notifications', require('./routes/notificationRoutes')); 
 app.use("/api/message", require("./routes/messageRoutes"));
 app.use("/api", require("./routes/userandgroupRoutes"));
+app.use("/api/ranking", require("./routes/rankingRoutes"));
 
 module.exports = app;   

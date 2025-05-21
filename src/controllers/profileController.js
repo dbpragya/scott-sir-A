@@ -29,7 +29,7 @@ exports.getProfile = async (req, res) => {
         last_name: user.last_name,
         email: user.email,
         profilePicture: user.profilePicture,
-        badges: user.badges || []   // include badges here
+        badges: user.badges || []  
       }
     });
   } catch (error) {
@@ -37,8 +37,6 @@ exports.getProfile = async (req, res) => {
     res.status(500).json({ status: false, message: "Server error" });
   }
 };
-
-
 
 exports.updateProfile = async (req, res) => {
  
@@ -120,8 +118,6 @@ exports.getTotalEvents = async (req, res) => {
   }
 };
 
-
-
 exports.changePassword = async (req, res) => {
   const { currentPassword, newPassword, confirmPassword } = req.body;
 
@@ -174,10 +170,8 @@ exports.logout = (req, res) => {
   }
 };
 
-
 exports.updateAllNotifications = async (req, res) => {
   const { allNotifications } = req.body; 
-  // Validate input
   if (typeof allNotifications !== 'boolean') {
     return res.status(400).json({ message: 'Invalid input, please provide a boolean value.' });
   }
@@ -197,8 +191,6 @@ exports.updateAllNotifications = async (req, res) => {
     return res.status(500).json({ message: 'Server error, please try again later.' });
   }
 };
-
-
 
 exports.updateChatNotifications = async (req, res) => {
   const { chatNotifications } = req.body; 
@@ -222,7 +214,6 @@ exports.updateChatNotifications = async (req, res) => {
     return res.status(500).json({ message: 'Server error, please try again later.' });
   }
 };
-
 
 exports.getPlan = async (req, res) => {
   try {
@@ -250,8 +241,7 @@ exports.purchasePlan = async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Fetch the single subscription plan
-    const plan = await SubscriptionPlan.findOne(); // First/only plan
+    const plan = await SubscriptionPlan.findOne(); 
     if (!plan) {
       return res.status(404).json({ message: 'Subscription plan not found' });
     }
@@ -276,7 +266,6 @@ exports.purchasePlan = async (req, res) => {
         expiryDate.setUTCFullYear(expiryDate.getUTCFullYear() + 1);
     }
 
-    // Extend if already active
     if (
       user.subscription &&
       user.subscription.status === 'active' &&
@@ -307,4 +296,3 @@ exports.purchasePlan = async (req, res) => {
     return res.status(500).json({ message: 'Server error' });
   }
 };
-

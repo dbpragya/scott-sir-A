@@ -1,23 +1,19 @@
 const Event = require("../models/Event");
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
-const { checkTopPlannerBadge } = require('../utils/badgeUtils'); 
-const { checkSpeedyVoterBadge } = require('../utils/badgeUtils'); 
+const { checkTopPlannerBadge } = require('../utils/badgeUtils');
+const { checkSpeedyVoterBadge } = require('../utils/badgeUtils');
 const Group = require("../models/Group");
+const createNotification = require('../utils/createNotification');
 
 exports.createEvent = async (req, res) => {
   try {
-    const { name, location, description, votingTime, dates, invitationCustomization } = req.body;
-
-    console.log("Received createEvent request with data:", { name, location, votingTime, dates, invitationCustomization });
-
-    if (!name || !votingTime || !dates || dates.length === 0) {
-      console.warn("Validation failed: Missing required fields");
-      return res.status(400).json({ status: false, message: "Missing required fields" });
-    }
-
+    const { name, location, description, votingTime, dates, invitationCustomization } = req.body;    
     const userId = req.user.id;
-    console.log("User ID from token:", userId);
+
+    if(!name || !location || !description || !votingTime || !dates) {
+      return res.status(400).json({ status: false, message: "All fields are required" });
+    }
 
     const user = await User.findById(userId);
     if (!user) {
@@ -31,12 +27,8 @@ exports.createEvent = async (req, res) => {
       subscription.status === 'active' &&
       new Date(subscription.expiryDate) > now;
 
-    console.log(`User subscription status: ${subscription ? subscription.status : 'No subscription'}`);
-    console.log(`Is premium user: ${hasPremium}`);
-
     if (!hasPremium) {
       const existingEventsCount = await Event.countDocuments({ createdBy: userId });
-      console.log(`Existing events count for user: ${existingEventsCount}`);
 
       if (existingEventsCount >= 1) {
         console.warn("Non-premium user tried to create more than 1 event");
@@ -47,18 +39,14 @@ exports.createEvent = async (req, res) => {
       }
     }
 
-    // Set default color scheme to a medium gray hex color
     let customizationData = {
-      colorScheme: "#808080",
-      premiumTheme: "default",
+      premiumTheme: "Lavender",
     };
 
-    if (hasPremium && invitationCustomization) {
-      customizationData.colorScheme = invitationCustomization.colorScheme || "#808080";
-      customizationData.premiumTheme = invitationCustomization.premiumTheme || "default";
-      console.log("Applying custom invitation customization:", customizationData);
+    if (hasPremium && invitationCustomization && invitationCustomization.premiumTheme) {
+      customizationData.premiumTheme = invitationCustomization.premiumTheme;
     } else {
-      console.log("Using default invitation customization for non-premium user:", customizationData);
+      console.log("Using default premiumTheme for non-premium or no input:", customizationData.premiumTheme);
     }
 
     const newEvent = new Event({
@@ -73,10 +61,8 @@ exports.createEvent = async (req, res) => {
     });
 
     await newEvent.save();
-    console.log("New event saved successfully:", newEvent._id);
 
     await checkTopPlannerBadge(userId);
-    console.log("Checked and updated Top Planner Badge if eligible for user:", userId);
 
     res.status(201).json({ status: true, message: "Event created successfully", event: newEvent });
 
@@ -93,7 +79,7 @@ exports.getAllEvents = async (req, res) => {
 
     const events = await Event.find({ type: "Planned", createdBy: userId })
       .sort({ createdAt: -1 })
-      .populate({ path: "createdBy", select: "profilePicture" }) 
+      .populate({ path: "createdBy", select: "profilePicture" })
       .populate({ path: "votes.user", select: "profilePicture" });
 
     const modifiedEvents = events.map(event => ({
@@ -131,10 +117,10 @@ exports.getEventById = async (req, res) => {
     const formatWeekdayDate = (dateStr) => {
       const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
       const d = new Date(dateStr);
-      const weekday = days[d.getUTCDay()]; 
+      const weekday = days[d.getUTCDay()];
 
       const year = d.getUTCFullYear();
-      const month = String(d.getUTCMonth() + 1).padStart(2, '0'); 
+      const month = String(d.getUTCMonth() + 1).padStart(2, '0');
       const day = String(d.getUTCDate()).padStart(2, '0');
 
       return `${weekday} ${year}-${month}-${day}`;
@@ -154,7 +140,7 @@ exports.getEventById = async (req, res) => {
         if (remainingTimeMs > 0) {
           const hoursRemaining = Math.floor(remainingTimeMs / (1000 * 60 * 60));
           const minutesRemaining = Math.floor((remainingTimeMs % (1000 * 60 * 60)) / (1000 * 60));
-          
+
           if (hoursRemaining > 0) {
             remainingTimeText = `${hoursRemaining} hour${hoursRemaining > 1 ? "s" : ""} remaining`;
             if (minutesRemaining > 0) {
@@ -188,7 +174,7 @@ exports.getEventById = async (req, res) => {
     const datesWithVotes = event.dates.map(d => {
       const eventDateStr = new Date(d.date).toISOString().split('T')[0];
       return {
-        date: formatWeekdayDate(d.date),  
+        date: formatWeekdayDate(d.date),
         timeSlot: d.timeSlot,
         voteCount: votesByDateMap[eventDateStr]?.count || 0,
         votersProfilePictures: votesByDateMap[eventDateStr]?.votersProfilePictures || [],
@@ -242,7 +228,10 @@ exports.handleInviteLink = async (req, res) => {
   }
 
   try {
-    const event = await Event.findById(eventId);
+    const event = await Event.findById(eventId)
+      .populate('createdBy', 'first_name last_name profilePicture')
+      .lean();
+
     if (!event) {
       return res.status(404).json({ status: false, message: "Event not found" });
     }
@@ -251,7 +240,7 @@ exports.handleInviteLink = async (req, res) => {
 
     if (!token) {
       return res.status(401).json({
-        status: true,
+        status: false,
         message: "Please login/signup to view the event",
         redirectTo: `/signup?redirect=/invite?eventId=${eventId}`,
       });
@@ -267,22 +256,36 @@ exports.handleInviteLink = async (req, res) => {
 
     const userId = req.user.id;
 
-    if (event.createdBy.toString() === userId) {
+    if (event.createdBy._id.toString() === userId) {
       return res.status(403).json({ status: false, message: "Event creator cannot access this invite link." });
     }
 
     if (!event.invitedUsers.some(u => u.toString() === userId)) {
       event.invitedUsers.push(userId);
-      await event.save();
+      await Event.findByIdAndUpdate(eventId, { invitedUsers: event.invitedUsers });
     }
 
-    res.status(200).json({ status: true, event });
+    const responseEvent = {
+      name: event.name,
+      location: event.location || '',
+      description: event.description || '',
+      creator: {
+        name: `${event.createdBy.first_name} ${event.createdBy.last_name}`,
+        profilePicture: event.createdBy.profilePicture || '',
+      },
+      finalizedDate: event.finalizedDate && event.finalizedDate.date
+        ? event.finalizedDate
+        : [],
+    };
+
+    res.status(200).json({ status: true, event: responseEvent });
 
   } catch (err) {
     console.error("Invite Link Error:", err);
     res.status(500).json({ status: false, message: "Server error" });
   }
 };
+
 
 
 exports.getInvitedEventDetailsForVoting = async (req, res) => {
@@ -307,7 +310,7 @@ exports.getInvitedEventDetailsForVoting = async (req, res) => {
       const weekday = days[dateObj.getDay()];
 
       const year = dateObj.getFullYear();
-      const month = String(dateObj.getMonth() + 1).padStart(2, '0'); 
+      const month = String(dateObj.getMonth() + 1).padStart(2, '0');
       const day = String(dateObj.getDate()).padStart(2, '0');
 
       return `${weekday} ${year}-${month}-${day}`;
@@ -400,7 +403,6 @@ exports.voteOnEvent = async (req, res) => {
   }
 };
 
-
 exports.getInvitedEvents = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -434,7 +436,7 @@ exports.getInvitedEvents = async (req, res) => {
 exports.getVotersByDate = async (req, res) => {
   try {
     const { eventId } = req.params;
-    const { selectedDate } = req.query; 
+    const { selectedDate } = req.query;
 
     if (!selectedDate) {
       return res.status(400).json({ message: "Please provide selectedDate query parameter." });
@@ -471,8 +473,6 @@ exports.getVotersByDate = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
-
-const createNotification = require('../utils/createNotification');
 
 exports.finalizeEventDate = async (req, res) => {
   try {
@@ -515,7 +515,7 @@ exports.finalizeEventDate = async (req, res) => {
       return voteDateISO === selectedDateISO;
     });
 
-    await Promise.all(votersForDate.map(vote => 
+    await Promise.all(votersForDate.map(vote =>
       createNotification(vote.user._id, title, message)
     ));
 
@@ -525,5 +525,3 @@ exports.finalizeEventDate = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
-
-

@@ -11,9 +11,7 @@ router.post('/logout', authenticateUser, logout);
 router.put('/all-notifications', authenticateUser, updateAllNotifications);
 router.put('/chat-notifications', authenticateUser, updateChatNotifications);
 
-// for premium plan
 router.get('/premium-plan', authenticateUser, getPlan);
 router.post('/purchase', authenticateUser, purchasePlan);
-
 
 module.exports = router;
