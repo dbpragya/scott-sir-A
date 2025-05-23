@@ -7,7 +7,6 @@ const Group = require("../models/Group");
 const createNotification = require('../utils/createNotification');
 const { validationResult } = require("express-validator");
 
-
 // Validation Done
 exports.createEvent = async (req, res) => {
   try {
@@ -203,7 +202,6 @@ exports.getEventById = async (req, res) => {
   }
 };
 
-
 exports.getShareLink = async (req, res) => {
   try {
     const { eventId } = req.params;
@@ -323,6 +321,11 @@ exports.getInvitedEventDetailsForVoting = async (req, res) => {
 
     const invitedUsersProfilePics = event.invitedUsers.map(user => user.profilePicture || null);
 
+    let finalizedDate = "";
+    if (event.finalizedDate && event.finalizedDate.date) {
+      finalizedDate = getFormattedDate(event.finalizedDate.date);
+    }
+
     const eventDetails = {
       name: event.name,
       location: event.location,
@@ -334,6 +337,8 @@ exports.getInvitedEventDetailsForVoting = async (req, res) => {
       dates: datesWithFormattedDate,
       invitedUsersCount: event.invitedUsers.length,
       invitedUsersProfilePics,
+      finalizedDate,  
+      timeSlot: event.finalizedDate?.timeSlot || null,
     };
 
     res.status(200).json({ success: true, event: eventDetails });
@@ -342,6 +347,7 @@ exports.getInvitedEventDetailsForVoting = async (req, res) => {
     res.status(500).json({ success: false, message: "Server error" });
   }
 };
+
 
 // Validation Done
 exports.voteOnEvent = async (req, res) => {
@@ -504,9 +510,7 @@ exports.finalizeEventDate = async (req, res) => {
         message: "Event date has already been finalized and cannot be changed."
       });
     }
-
     
-
     if (event.createdBy.toString() !== req.user.id) {
       return res.status(403).json({ success: false, message: "Access denied. Only event creator can finalize the date." });
     }
