@@ -4,7 +4,9 @@ const mongoose = require('mongoose');
 exports.getTopRankings = async (req, res) => {
   try {
     const limit = 7;
+    const loggedInUserId = req.user.id; // from auth middleware
 
+    // 1. Get Premium Users
     const premiumRankings = await Event.aggregate([
       {
         $group: {
@@ -37,6 +39,7 @@ exports.getTopRankings = async (req, res) => {
 
     const premiumUserIds = premiumRankings.map(u => new mongoose.Types.ObjectId(u.userId));
 
+    // 2. Get Non-Premium Users
     const nonPremiumRankings = await Event.aggregate([
       {
         $group: {
@@ -71,17 +74,24 @@ exports.getTopRankings = async (req, res) => {
       },
     ]);
 
+    // 3. Combine and Add Positions
     const combinedRankings = [...premiumRankings, ...nonPremiumRankings];
-
     const rankedWithPosition = combinedRankings.map((user, index) => ({
-      position: index + 1, 
+      position: index + 1,
       ...user,
     }));
 
-    return res.json({ success: true, rankings: rankedWithPosition });
+    // 4. Get current user's position only
+    const userRanking = rankedWithPosition.find(user => user.userId.toString() === loggedInUserId);
+    const yourRanking = userRanking ? userRanking.position : [];
+
+    return res.json({
+      success: true,
+      yourRanking: yourRanking,
+      rankings: rankedWithPosition,
+    });
   } catch (error) {
-    console.error('Error in getRankingsWithPremiumPriority:', error);
-    return res.status(500).json({ success: false, message: 'Server error', error: error.message });
+    console.error('Error in getTopRankings:', error);
+    return res.success(500).json({ success: false, message: 'Server error', error: error.message });
   }
 };
-
