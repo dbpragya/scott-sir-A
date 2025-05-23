@@ -4,9 +4,8 @@ const mongoose = require('mongoose');
 exports.getTopRankings = async (req, res) => {
   try {
     const limit = 7;
-    const loggedInUserId = req.user.id; // from auth middleware
+    const loggedInUserId = req.user.id; 
 
-    // 1. Get Premium Users
     const premiumRankings = await Event.aggregate([
       {
         $group: {
@@ -39,7 +38,6 @@ exports.getTopRankings = async (req, res) => {
 
     const premiumUserIds = premiumRankings.map(u => new mongoose.Types.ObjectId(u.userId));
 
-    // 2. Get Non-Premium Users
     const nonPremiumRankings = await Event.aggregate([
       {
         $group: {
@@ -74,14 +72,12 @@ exports.getTopRankings = async (req, res) => {
       },
     ]);
 
-    // 3. Combine and Add Positions
     const combinedRankings = [...premiumRankings, ...nonPremiumRankings];
     const rankedWithPosition = combinedRankings.map((user, index) => ({
       position: index + 1,
       ...user,
     }));
 
-    // 4. Get current user's position only
     const userRanking = rankedWithPosition.find(user => user.userId.toString() === loggedInUserId);
     const yourRanking = userRanking ? userRanking.position : [];
 
