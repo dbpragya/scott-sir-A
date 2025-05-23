@@ -8,6 +8,7 @@ const createNotification = require('../utils/createNotification');
 const { validationResult } = require("express-validator");
 
 
+// Validation Done
 exports.createEvent = async (req, res) => {
   try {
     const { name, location, description, votingTime, dates, invitationCustomization } = req.body;    
@@ -342,7 +343,7 @@ exports.getInvitedEventDetailsForVoting = async (req, res) => {
   }
 };
 
-
+// Validation Done
 exports.voteOnEvent = async (req, res) => {
   const { eventId } = req.params;
   const { selectedDate } = req.body;
@@ -481,6 +482,7 @@ exports.getVotersByDate = async (req, res) => {
   }
 };
 
+// Validation Done 
 exports.finalizeEventDate = async (req, res) => {
   try {
     const { eventId } = req.params;
@@ -502,6 +504,8 @@ exports.finalizeEventDate = async (req, res) => {
         message: "Event date has already been finalized and cannot be changed."
       });
     }
+
+    
 
     if (event.createdBy.toString() !== req.user.id) {
       return res.status(403).json({ success: false, message: "Access denied. Only event creator can finalize the date." });
