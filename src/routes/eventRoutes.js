@@ -78,4 +78,3 @@ router.post(
   finalizeEventDate
 );
 module.exports = router;
-
