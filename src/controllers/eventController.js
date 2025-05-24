@@ -211,11 +211,11 @@ exports.getShareLink = async (req, res) => {
       return res.status(404).json({ success: false, message: "Event not found" });
     }
 
-    const shareLink = `https://oyster-app-g2hmu.ondigitalocean.app/api/events/invite?eventId=${eventId}`;
+    const shareLink = `http://localhost:5000/api/events/invite?eventId=${eventId}`;
 
     res.status(200).json({ success: true, link: shareLink });
   } catch (error) {
-    console.error("Get Share Link Error:", error);
+    console.error("Get Share Link Error:", error);  
     res.status(500).json({ success: false, message: "Failed to generate share link" });
   }
 };
@@ -289,7 +289,9 @@ exports.handleInviteLink = async (req, res) => {
 exports.getInvitedEventDetailsForVoting = async (req, res) => {
   try {
     const { eventId } = req.params;
+    const userId = req.user.id;
 
+    // Fetch the event by its ID and populate the necessary fields
     const event = await Event.findById(eventId)
       .populate({ path: 'createdBy', select: 'first_name profilePicture' })
       .populate({ path: 'invitedUsers', select: 'profilePicture' });
@@ -298,10 +300,17 @@ exports.getInvitedEventDetailsForVoting = async (req, res) => {
       return res.status(404).json({ success: false, message: "Event not found" });
     }
 
-    if (event.createdBy._id.toString() === req.user.id) {
+    // Check if the user is invited to the event
+    if (!event.invitedUsers.some(user => user._id.toString() === userId)) {
+      return res.status(403).json({ success: false, message: "User is not invited to this event." });
+    }
+
+    // Prevent the event creator from accessing voting details
+    if (event.createdBy._id.toString() === userId) {
       return res.status(403).json({ success: false, message: "Event creator cannot access this voting details." });
     }
 
+    // Helper function to format date
     const getFormattedDate = (dateStr) => {
       const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
       const dateObj = new Date(dateStr);
@@ -314,11 +323,13 @@ exports.getInvitedEventDetailsForVoting = async (req, res) => {
       return `${weekday} ${year}-${month}-${day}`;
     };
 
+    // Format event dates
     const datesWithFormattedDate = event.dates.map(dateObj => ({
       date: getFormattedDate(dateObj.date),
       timeSlot: dateObj.timeSlot,
     }));
 
+    // Collect profile pictures of the invited users
     const invitedUsersProfilePics = event.invitedUsers.map(user => user.profilePicture || null);
 
     let finalizedDate = "";
@@ -326,6 +337,7 @@ exports.getInvitedEventDetailsForVoting = async (req, res) => {
       finalizedDate = getFormattedDate(event.finalizedDate.date);
     }
 
+    // Construct event details response
     const eventDetails = {
       name: event.name,
       location: event.location,
@@ -355,14 +367,6 @@ exports.voteOnEvent = async (req, res) => {
   const { selectedDate } = req.body;
   const userId = req.user.id;
 
-  // const errors = validationResult(req);
-  // if (!errors.isEmpty()) {
-  //   return res.status(400).json({
-  //     status: false,
-  //     message: errors.array()[0].msg,
-  //   });
-  // }
-
   try {
     const event = await Event.findById(eventId);
     if (!event) {
@@ -371,6 +375,10 @@ exports.voteOnEvent = async (req, res) => {
 
     if (event.createdBy.toString() === userId) {
       return res.status(403).json({ success: false, message: "Event creator cannot vote for their own event." });
+    }
+
+    if (!event.invitedUsers.some(user => user.toString() === userId)) {
+      return res.status(403).json({ success: false, message: "You are not invited to vote on this event." });
     }
 
     if (!selectedDate) {
@@ -387,11 +395,7 @@ exports.voteOnEvent = async (req, res) => {
       return res.status(400).json({ success: false, message: "You already voted" });
     }
 
-    event.votes.push({ user: userId, date: new Date(selectedDate).toISOString().split('T')[0] });  
-    if (!event.invitedUsers.some(u => u.toString() === userId)) {
-      event.invitedUsers.push(userId);
-    }
-
+    event.votes.push({ user: userId, date: new Date(selectedDate).toISOString().split('T')[0] });
     await event.save();
 
     let group = await Group.findOne({ eventId });
@@ -420,11 +424,14 @@ exports.getInvitedEvents = async (req, res) => {
   try {
     const userId = req.user.id;
 
-    const events = await Event.find({ invitedUsers: userId })
-      .populate({
-        path: "createdBy",
-        select: "first_name profilePicture",
-      });
+    // Find events where user is invited, but exclude those created by the user
+    const events = await Event.find({
+      invitedUsers: userId,
+      createdBy: { $ne: userId },  // Exclude events created by current user
+    }).populate({
+      path: "createdBy",
+      select: "first_name profilePicture",
+    });
 
     if (events.length === 0) {
       console.log("No invited events found for user.");
@@ -445,6 +452,7 @@ exports.getInvitedEvents = async (req, res) => {
     res.status(500).json({ success: false, message: "Server error" });
   }
 };
+
 
 exports.getVotersByDate = async (req, res) => {
   try {
@@ -547,3 +555,4 @@ exports.finalizeEventDate = async (req, res) => {
     res.status(500).json({ success: false, message: "Server error" });
   }
 };
+
