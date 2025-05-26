@@ -13,7 +13,7 @@ const transporter = nodemailer.createTransport({
 
 async function sendEmail(to, subject, text) {
   const mailOptions = {
-    from: `"Your App Name" <${EMAIL}>`,
+    from: `"MakeItHappen" <${EMAIL}>`,
     to,
     subject,
     text,
