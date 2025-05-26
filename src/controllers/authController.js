@@ -29,8 +29,7 @@ const signup = async (req, res) => {
     }
 
     const otp = crypto.randomInt(1000, 9999).toString();
-    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); 
-
+    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
     const newUser = new User({
       first_name,
       last_name,
@@ -41,9 +40,17 @@ const signup = async (req, res) => {
 
     await newUser.save();
 
-    await sendEmail(newUser.email, "Confirm your email", `Your OTP is: ${otp}`);
+    await sendEmail(
+      newUser.email,
+      "Confirm your email",
+      `Your OTP is: ${otp}`
+    );
 
-    const token = jwt.sign({ id: newUser._id, email: newUser.email }, process.env.JWT_SECRET, { expiresIn: '30d' });
+    const token = jwt.sign(
+      { id: newUser._id, email: newUser.email },
+      process.env.JWT_SECRET,
+      { expiresIn: "30d" }
+    );
 
     return res.status(201).json({
       success: true,
@@ -51,10 +58,13 @@ const signup = async (req, res) => {
       token,
     });
   } catch (error) {
-    console.error(error);
+    console.error("Signup error:", error);
     return res.status(500).json({ success: false, message: "Server error" });
   }
 };
+
+module.exports = { signup };
+
 
 
 // Validation Done
