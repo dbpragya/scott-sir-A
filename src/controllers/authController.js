@@ -84,7 +84,7 @@ const verifyOtp = async (req, res) => {
       return res.status(400).json({ status: false, message: "OTP has expired" });
     }
     const token = jwt.sign(
-      { id: newUser._id, email: newUser.email },
+      { id: user._id, email: user.email },
       process.env.JWT_SECRET,
       { expiresIn: "30d" }
     );
