@@ -82,12 +82,12 @@ exports.getTopRankings = async (req, res) => {
     const yourRanking = userRanking ? userRanking.position : [];
 
     return res.json({
-      success: true,
+      status: true,
       yourRanking: yourRanking,
       rankings: rankedWithPosition,
     });
   } catch (error) {
     console.error('Error in getTopRankings:', error);
-    return res.success(500).json({ success: false, message: 'Server error', error: error.message });
+    return res.success(500).json({ status: false, message: 'Server error', error: error.message });
   }
 };

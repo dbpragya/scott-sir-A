@@ -10,7 +10,7 @@ exports.getProfile = async (req, res) => {
     const token = req.header('Authorization')?.replace('Bearer ', '');
 
     if (!token) {
-      return res.status(401).json({ success: false, message: "No token, access denied" });
+      return res.status(401).json({ status: false, message: "No token, access denied" });
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
@@ -19,11 +19,11 @@ exports.getProfile = async (req, res) => {
     const user = await User.findById(userId).select('-password');
 
     if (!user) {
-      return res.status(400).json({ success: false, message: "User not found" });
+      return res.status(400).json({ status: false, message: "User not found" });
     }
 
     res.status(200).json({
-      success: true,
+      status: true,
       message: "Profile fetched successfully",
       user: {
         first_name: user.first_name,
@@ -35,7 +35,7 @@ exports.getProfile = async (req, res) => {
     });
   } catch (error) {
     console.error("Get Profile Error:", error);
-    res.status(500).json({ success: false, message: "Server error" });
+    res.status(500).json({ status: false, message: "Server error" });
   }
 };
 
@@ -44,7 +44,7 @@ exports.updateProfile = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({
-      success: false,
+      status: false,
       message: errors.array()[0].msg,
     });
   }
@@ -54,7 +54,7 @@ exports.updateProfile = async (req, res) => {
   try {
     const token = req.header('Authorization')?.replace('Bearer ', '');
     if (!token) {
-      return res.status(401).json({ success: false, message: "No token, access denied" });
+      return res.status(401).json({ status: false, message: "No token, access denied" });
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
@@ -62,13 +62,13 @@ exports.updateProfile = async (req, res) => {
 
     const user = await User.findById(userId);
     if (!user) {
-      return res.status(400).json({ success: false, message: "User not found" });
+      return res.status(400).json({ status: false, message: "User not found" });
     }
 
     if (email && email !== user.email) {
       const existingUser = await User.findOne({ email });
       if (existingUser) {
-        return res.status(400).json({ success: false, message: "Email is already in use" });
+        return res.status(400).json({ status: false, message: "Email is already in use" });
       }
     }
 
@@ -79,7 +79,7 @@ exports.updateProfile = async (req, res) => {
     await user.save();
 
     res.status(200).json({
-      success: true,
+      status: true,
       message: "Profile updated successfully",
       user: {
         first_name: user.first_name,
@@ -89,7 +89,7 @@ exports.updateProfile = async (req, res) => {
     });
   } catch (error) {
     console.error("Update Profile Error:", error);
-    res.status(500).json({ success: false, message: "Server error" });
+    res.status(500).json({ status: false, message: "Server error" });
   }
 };
 
@@ -99,7 +99,7 @@ exports.getTotalEvents = async (req, res) => {
     const token = req.header('Authorization')?.replace('Bearer ', '');
 
     if (!token) {
-      return res.status(401).json({ success: false, message: "No token, access denied" });
+      return res.status(401).json({ status: false, message: "No token, access denied" });
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
@@ -107,11 +107,11 @@ exports.getTotalEvents = async (req, res) => {
     const events = await Event.find({ createdBy: decoded.id }).sort({ createdAt: -1 });
 
     if (events.length === 0) {
-      return res.status(400).json({ success: false, message: "No events found" });
+      return res.status(400).json({ status: false, message: "No events found" });
     }
 
     res.status(200).json({
-      success: true,
+      status: true,
       message: "Total events fetched successfully",
       events: events.map(event => ({
         name: event.name,
@@ -122,7 +122,7 @@ exports.getTotalEvents = async (req, res) => {
     });
   } catch (error) {
     console.error("Get Events Error:", error);
-    res.status(500).json({ success: false, message: "Server error" });
+    res.status(500).json({ status: false, message: "Server error" });
   }
 };
 
@@ -131,7 +131,7 @@ exports.changePassword = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ 
-      success: false, 
+      status: false, 
       message: errors.array()[0].msg,
     });
   }
@@ -139,18 +139,18 @@ exports.changePassword = async (req, res) => {
   const { currentPassword, newPassword, confirmPassword } = req.body;
 
   if (currentPassword === newPassword) {
-    return res.status(400).json({ success: false, message: 'New password cannot be the same as the current password.' });
+    return res.status(400).json({ status: false, message: 'New password cannot be the same as the current password.' });
   }
 
   try {
     const user = await User.findById(req.user.id);
     if (!user) {
-      return res.status(404).json({ success: false, message: 'User not found.' });
+      return res.status(404).json({ status: false, message: 'User not found.' });
     }
 
     const isMatch = await bcrypt.compare(currentPassword, user.password);
     if (!isMatch) {
-      return res.status(400).json({ success: false, message: 'Current password is incorrect.' });
+      return res.status(400).json({ status: false, message: 'Current password is incorrect.' });
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
@@ -158,20 +158,20 @@ exports.changePassword = async (req, res) => {
     user.password = hashedPassword;
     await user.save();
 
-    res.status(200).json({ success: true, message: 'Password updated successfully.' });
+    res.status(200).json({ status: true, message: 'Password updated successfully.' });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ success: false, message: 'Server error, please try again later.' });
+    res.status(500).json({ status: false, message: 'Server error, please try again later.' });
   }
 };
 
 
 exports.logout = (req, res) => {
   try {
-    return res.status(200).json({ success: true, message: 'Logged out successfully.' });
+    return res.status(200).json({ status: true, message: 'Logged out successfully.' });
   } catch (error) {
     console.error(error);
-    return res.status(500).json({ success: false, message: 'Server error, please try again later.' }); 
+    return res.status(500).json({ status: false, message: 'Server error, please try again later.' }); 
   }
 };
 
@@ -180,7 +180,7 @@ exports.updateAllNotifications = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ 
-      success: false, 
+      status: false, 
       message: errors.array()[0].msg,
     });
   }
@@ -190,16 +190,16 @@ exports.updateAllNotifications = async (req, res) => {
   try {
     const user = await User.findById(req.user.id);  
     if (!user) {
-      return res.status(404).json({ success: false, message: 'User not found.' });
+      return res.status(404).json({ status: false, message: 'User not found.' });
     }
 
     user.allNotifications = allNotifications;
     await user.save();
 
-    return res.status(200).json({ success: true, message: 'All notifications updated successfully.' });
+    return res.status(200).json({ status: true, message: 'All notifications updated successfully.' });
   } catch (error) {
     console.error(error);
-    return res.status(500).json({ success: false, message: 'Server error, please try again later.' });
+    return res.status(500).json({ status: false, message: 'Server error, please try again later.' });
   }
 };
 
@@ -208,7 +208,7 @@ exports.updateChatNotifications = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({
-      success: false,
+      status: false,
       message: errors.array()[0].msg,
     });
   }
@@ -218,16 +218,16 @@ exports.updateChatNotifications = async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
     if (!user) {
-      return res.status(404).json({ success: false, message: 'User not found.' });
+      return res.status(404).json({ status: false, message: 'User not found.' });
     }
 
     user.chatNotifications = chatNotifications;
     await user.save();
 
-    return res.status(200).json({ success: true, message: 'Chat notifications updated successfully.' });
+    return res.status(200).json({ status: true, message: 'Chat notifications updated successfully.' });
   } catch (error) {
     console.error(error);
-    return res.status(500).json({ success: false, message: 'Server error, please try again later.' });
+    return res.status(500).json({ status: false, message: 'Server error, please try again later.' });
   }
 };
 
@@ -236,11 +236,11 @@ exports.getPlan = async (req, res) => {
   try {
     const plan = await SubscriptionPlan.findOne();
     if (!plan) {
-      return res.status(404).json({ success: false, message: 'Subscription plan not found' });
+      return res.status(404).json({ status: false, message: 'Subscription plan not found' });
     }
     res.json(plan);
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Server error, please try again later.' });
+    res.status(500).json({ status: false, message: 'Server error, please try again later.' });
   }
 };
 
@@ -250,17 +250,17 @@ exports.purchasePlan = async (req, res) => {
     const { paymentId } = req.body;
 
     if (!paymentId) {
-      return res.status(400).json({ success: false, message: 'paymentId is required' });
+      return res.status(400).json({ status: false, message: 'paymentId is required' });
     }
 
     const user = await User.findById(userId);
     if (!user) {
-      return res.status(404).json({ success: false, message: 'User not found.' });
+      return res.status(404).json({ status: false, message: 'User not found.' });
     }
 
     const plan = await SubscriptionPlan.findOne(); 
     if (!plan) {
-      return res.status(404).json({ success: false, message: 'Subscription plan not found' });
+      return res.status(404).json({ status: false, message: 'Subscription plan not found' });
     }
 
     const now = new Date();
@@ -292,9 +292,9 @@ exports.purchasePlan = async (req, res) => {
       if (new Date(user.subscription.expiryDate) < expiryDate) {
         user.subscription.expiryDate = expiryDate;
         await user.save();
-        return res.status(200).json({ success: true, message: 'Subscription extended', subscription: user.subscription });
+        return res.status(200).json({ status: true, message: 'Subscription extended', subscription: user.subscription });
       }
-      return res.status(200).json({  success: true, message: 'Subscription already active', subscription: user.subscription });
+      return res.status(200).json({  status: true, message: 'Subscription already active', subscription: user.subscription });
     }
 
     user.subscription = {
@@ -307,9 +307,9 @@ exports.purchasePlan = async (req, res) => {
 
     await user.save();
 
-    return res.status(201).json({ success: true, message: 'Subscription activated', subscription: user.subscription });
+    return res.status(201).json({ status: true, message: 'Subscription activated', subscription: user.subscription });
   } catch (error) {
     console.error('Error in purchasePlan:', error);
-    return res.status(500).json({ success: false, message: 'Server error' });
+    return res.status(500).json({ status: false, message: 'Server error' });
   }
 };
