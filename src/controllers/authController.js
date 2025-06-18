@@ -59,8 +59,6 @@ const signup = async (req, res) => {
 module.exports = { signup };
 
 
-
-// Validation Done
 const verifyOtp = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -85,8 +83,24 @@ const verifyOtp = async (req, res) => {
     if (user.otpExpiry <= Date.now()) {
       return res.status(400).json({ status: false, message: "OTP has expired" });
     }
-
-    return res.status(200).json({ status: true, message: "OTP verified successfully" });
+    const token = jwt.sign(
+      { id: newUser._id, email: newUser.email },
+      process.env.JWT_SECRET,
+      { expiresIn: "30d" }
+    );
+    return res.status(200).json({
+      status: true,
+      message: "OTP verified successfully",
+      token,
+      data: {
+        _id: user._id,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        email: user.email,
+        profilePicture: `${process.env.SERVER_URL}/${user.profilePicture}`,
+        isVerify: user.isVerify,
+      }
+    });
   } catch (error) {
     res.status(500).json({ status: false, message: error.message });
   }
