@@ -83,6 +83,8 @@ const verifyOtp = async (req, res) => {
     if (user.otpExpiry <= Date.now()) {
       return res.status(400).json({ status: false, message: "OTP has expired" });
     }
+    user.isVerify  = true;
+    user.save();
     const token = jwt.sign(
       { id: user._id, email: user.email },
       process.env.JWT_SECRET,
