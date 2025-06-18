@@ -213,7 +213,6 @@ const login = async (req, res) => {
     res.status(200).json({
       status: true,
       message: "Login successful",
-      token,
       data: {
         _id: user._id,
         first_name: user.first_name,
@@ -221,6 +220,7 @@ const login = async (req, res) => {
         email: user.email,
         profilePicture: `${process.env.SERVER_URL}/${user.profilePicture}`,
         isVerify: user.isVerify,
+        token
       }
     });
 
