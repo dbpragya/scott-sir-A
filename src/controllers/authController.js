@@ -18,7 +18,14 @@ const signup = async (req, res) => {
   }
 
   try {
-    const { first_name, last_name, email } = req.body;
+    const { first_name, last_name, email , password, confirmPassword} = req.body;
+
+    if (password !== confirmPassword) {
+      return res.status(400).json({
+        status: false,
+        message: "Passwords do not match.",
+      });
+    }
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {
@@ -27,6 +34,7 @@ const signup = async (req, res) => {
         message: "User already exists with this email.",
       });
     }
+    const hashedPassword = await bcrypt.hash(password, 10);
 
     const otp = crypto.randomInt(1000, 9999).toString();
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
@@ -36,6 +44,7 @@ const signup = async (req, res) => {
       email,
       otp,
       otpExpiry,
+      password: hashedPassword,
     });
 
     await newUser.save();
@@ -55,9 +64,6 @@ const signup = async (req, res) => {
     return res.status(500).json({ status: false, message: "Server error" });
   }
 };
-
-module.exports = { signup };
-
 
 const verifyOtp = async (req, res) => {
   const errors = validationResult(req);
