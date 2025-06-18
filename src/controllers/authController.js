@@ -46,16 +46,9 @@ const signup = async (req, res) => {
       `Your OTP is: ${otp}`
     );
 
-    const token = jwt.sign(
-      { id: newUser._id, email: newUser.email },
-      process.env.JWT_SECRET,
-      { expiresIn: "30d" }
-    );
-
     return res.status(201).json({
       status: true,
-      message: "User Created Successfully! Please verify your email to continue.",
-      token,
+      message: "Please verify your email to continue.",
     });
   } catch (error) {
     console.error("Signup error:", error);
