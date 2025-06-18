@@ -124,11 +124,11 @@ const signupValidationRules = [
     check('password')
     .trim()
     .notEmpty().withMessage('Password is required')
-    .isLength({ min: 6 }).withMessage('Password must be at least 6 characters long')
-    .matches(/[A-Z]/).withMessage('Password must contain at least one uppercase letter')  // Optional: Ensure at least one uppercase letter
-    .matches(/[a-z]/).withMessage('Password must contain at least one lowercase letter')  // Optional: Ensure at least one lowercase letter
-    .matches(/[0-9]/).withMessage('Password must contain at least one number')  // Optional: Ensure at least one number
-    .matches(/[@$!%*?&]/).withMessage('Password must contain at least one special character'),  // Optional: Ensure at least one special character
+    .isLength({ min: 6 }).withMessage('Password must be at least 6 characters long'),
+    // .matches(/[A-Z]/).withMessage('Password must contain at least one uppercase letter')  // Optional: Ensure at least one uppercase letter
+    // .matches(/[a-z]/).withMessage('Password must contain at least one lowercase letter')  // Optional: Ensure at least one lowercase letter
+    // .matches(/[0-9]/).withMessage('Password must contain at least one number')  // Optional: Ensure at least one number
+    // .matches(/[@$!%*?&]/).withMessage('Password must contain at least one special character'),  // Optional: Ensure at least one special character
 
   // Confirm Password Validation
   check('confirmPassword')
