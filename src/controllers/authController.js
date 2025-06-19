@@ -18,7 +18,7 @@ const signup = async (req, res) => {
   }
 
   try {
-    const { first_name, last_name, email , password, confirmPassword} = req.body;
+    const { first_name, last_name, email, password, confirmPassword } = req.body;
 
     if (password !== confirmPassword) {
       return res.status(400).json({
@@ -90,7 +90,7 @@ const verifyOtp = async (req, res) => {
     if (user.otpExpiry <= Date.now()) {
       return res.status(400).json({ status: false, message: "OTP has expired" });
     }
-    user.isVerify  = true;
+    user.isVerify = true;
     user.save();
     const token = jwt.sign(
       { id: user._id, email: user.email },
@@ -237,8 +237,13 @@ const login = async (req, res) => {
       return res.status(200).json({
         status: true,
         message: "Please verify your email to continue.",
-        date: {
-          isVerify: user.isVerify
+        data: {
+          _id: user._id,
+          first_name: user.first_name,
+          last_name: user.last_name,
+          email: user.email,
+          profilePicture: `${process.env.SERVER_URL}/${user.profilePicture}`,
+          isVerify: user.isVerify,
         }
       });
     }
