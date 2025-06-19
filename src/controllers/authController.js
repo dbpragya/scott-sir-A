@@ -36,7 +36,8 @@ const signup = async (req, res) => {
     }
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const otp = crypto.randomInt(1000, 9999).toString();
+    // const otp = crypto.randomInt(1000, 9999).toString();
+    const otp = 0000;
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
     const newUser = new User({
       first_name,
