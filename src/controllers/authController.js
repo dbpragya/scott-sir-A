@@ -294,7 +294,7 @@ const uploadProfilePicture = async (req, res) => {
     res.status(200).json({
       status: true,
       message: 'Profile picture uploaded successfully',
-      profilePicture: updatedUser.profilePicture
+      profilePicture: `${process.env.SERVER_URL}/${updatedUser.profilePicture}`,
     });
   } catch (error) {
     console.error("Error uploading profile picture:", error);
