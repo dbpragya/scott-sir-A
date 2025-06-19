@@ -222,7 +222,25 @@ const login = async (req, res) => {
     }
 
     if (!user.isVerify) {
-      return res.status(400).json({ status: false, message: "Please verify your email first." });
+      // const otp = crypto.randomInt(1000, 9999).toString();
+      const otp = '0000';
+      const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
+      user.otp = otp;
+      user.otpExpiry = otpExpiry
+      await user.save();
+
+      await sendEmail(
+        user.email,
+        "Confirm your email",
+        `Your OTP is: ${otp}`
+      );
+      return res.status(200).json({
+        status: true,
+        message: "Please verify your email to continue.",
+        date: {
+          isVerify: user.isVerify
+        }
+      });
     }
 
     const token = jwt.sign({ id: user._id, email: user.email }, process.env.JWT_SECRET, { expiresIn: '7d' });
