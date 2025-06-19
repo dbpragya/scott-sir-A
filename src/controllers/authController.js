@@ -179,7 +179,8 @@ const resendOtp = async (req, res) => {
       return res.status(404).json({ status: false, message: "User not found" });
     }
 
-    const otp = crypto.randomInt(1000, 9999).toString();
+    // const otp = crypto.randomInt(1000, 9999).toString();
+    const otp = '0000'
     user.otp = otp;
     user.otpExpiry = Date.now() + 10 * 60 * 1000;
     await user.save();
