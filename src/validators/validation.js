@@ -1,5 +1,4 @@
 const { body, param, check, validationResult } = require("express-validator");
-const mongoose = require('mongoose');
 
 const createEventValidation = [
   body("name")
@@ -175,6 +174,34 @@ const resendOtpValidationRules = [
     .normalizeEmail(),
 ];
 
+const emailValidationRules = [check('email')
+    .trim()
+    .notEmpty().withMessage('Email is required')
+    .isEmail().withMessage('Invalid email address')
+    .normalizeEmail()
+  ]
+
+const resetPasswordRules =  [
+    check('email')
+    .trim()
+    .notEmpty().withMessage('Email is required')
+    .isEmail().withMessage('Invalid email address')
+    .normalizeEmail(),
+
+    check('password')
+    .notEmpty().withMessage('Password is required')
+    .isLength({ min: 8 }).withMessage('Password must be at least 8 characters')
+    .matches(/[a-z]/).withMessage('Password must contain at least one lowercase letter')
+    .matches(/[A-Z]/).withMessage('Password must contain at least one uppercase letter')
+    .matches(/\d/).withMessage('Password must contain at least one number')
+    .matches(/[^A-Za-z0-9]/).withMessage('Password must contain at least one special character'),
+
+  check('confirmPassword')
+    .notEmpty().withMessage('Confirm password is required')
+    .custom((value, { req }) => value === req.body.password)
+    .withMessage('Passwords do not match'),
+]
+
 
 const loginValidationRules = [
   check('email')
@@ -244,6 +271,18 @@ const updateChatNotificationsValidationRules = [
     .isBoolean().withMessage('chatNotifications must be a boolean value'),
 ];
 
+const handleValidationResult = (req, res, next) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    const message = errors.array();
+    return res.status(400).json({
+      status: false,
+      message: message[0].msg || "Validation failed",
+    });
+  }
+  next();
+};
+
 
 module.exports = {
   createEventValidation,
@@ -257,5 +296,8 @@ module.exports = {
   updateProfileValidationRules,
   changePasswordValidationRules,
   updateAllNotificationsValidationRules,
-  updateChatNotificationsValidationRules
+  updateChatNotificationsValidationRules,
+  emailValidationRules,
+  handleValidationResult,
+  resetPasswordRules,
 };
