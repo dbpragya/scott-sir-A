@@ -5,7 +5,8 @@ const bcrypt = require("bcryptjs");
 const User = require("../models/User");
 const sendEmail = require("../utils/sendEmail");
 const crypto = require("crypto");
-const jwt = require('jsonwebtoken');
+const jwt = require("jsonwebtoken");
+
 
 // Validation Done
 const signup = async (req, res) => {
@@ -18,7 +19,8 @@ const signup = async (req, res) => {
   }
 
   try {
-    const { first_name, last_name, email, password, confirmPassword } = req.body;
+    const { first_name, last_name, email, password, confirmPassword } =
+      req.body;
 
     if (password !== confirmPassword) {
       return res.status(400).json({
@@ -37,7 +39,7 @@ const signup = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     // const otp = crypto.randomInt(1000, 9999).toString();
-    const otp = '0000';
+    const otp = "0000";
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
     const newUser = new User({
       first_name,
@@ -50,11 +52,7 @@ const signup = async (req, res) => {
 
     await newUser.save();
 
-    await sendEmail(
-      newUser.email,
-      "Confirm your email",
-      `Your OTP is: ${otp}`
-    );
+    await sendEmail(newUser.email, "Confirm your email", `Your OTP is: ${otp}`);
 
     return res.status(201).json({
       status: true,
@@ -62,7 +60,9 @@ const signup = async (req, res) => {
     });
   } catch (error) {
     console.error("Signup error:", error);
-    return res.status(500).json({ status: false, message: "Server error" });
+    return res
+      .status(500)
+      .json({ status: false, message: "Internal Server Error!" });
   }
 };
 
@@ -83,12 +83,16 @@ const verifyOtp = async (req, res) => {
       return res.status(400).json({ status: false, message: "User not found" });
     }
 
-    if (user.otp !== otp) {
-      return res.status(400).json({ status: false, message: "Invalid OTP" });
+    const isMatch = await bcrypt.compare(otp, user.otp);
+    if (!isMatch) {
+      return res.status(400).json({ status:false, message: "Incorrect OTP." });
     }
+    user.isOtpVerified = true;
 
     if (user.otpExpiry <= Date.now()) {
-      return res.status(400).json({ status: false, message: "OTP has expired" });
+      return res
+        .status(400)
+        .json({ status: false, message: "OTP has expired" });
     }
     user.isVerify = true;
     user.save();
@@ -108,10 +112,13 @@ const verifyOtp = async (req, res) => {
         email: user.email,
         profilePicture: `${process.env.SERVER_URL}/${user.profilePicture}`,
         isVerify: user.isVerify,
-      }
+      },
     });
   } catch (error) {
-    res.status(500).json({ status: false, message: error.message });
+    res.status(500).json({
+      status: false,
+      message: error?.message || "Internal Server Error!",
+    });
   }
 };
 
@@ -128,21 +135,27 @@ const createPassword = async (req, res) => {
   const { password } = req.body;
 
   try {
-    const token = req.header('Authorization')?.replace('Bearer ', '');
+    const token = req.header("Authorization")?.replace("Bearer ", "");
     if (!token) {
-      return res.status(401).json({ status: false, message: "No token, access denied" });
+      return res
+        .status(401)
+        .json({ status: false, message: "No token, access denied" });
     }
 
     let decoded;
     try {
       decoded = jwt.verify(token, process.env.JWT_SECRET);
     } catch (err) {
-      return res.status(401).json({ status: false, message: "Invalid or expired token" });
+      return res
+        .status(401)
+        .json({ status: false, message: "Invalid or expired token" });
     }
 
     const user = await User.findById(decoded.id);
     if (!user) {
-      return res.status(400).json({ status: false, message: "User not found." });
+      return res
+        .status(400)
+        .json({ status: false, message: "User not found." });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -154,7 +167,7 @@ const createPassword = async (req, res) => {
 
     res.status(200).json({
       status: true,
-      message: "Password set successfully. You can now log in."
+      message: "Password set successfully. You can now log in.",
     });
   } catch (error) {
     console.error("Create Password Error:", error);
@@ -180,8 +193,9 @@ const resendOtp = async (req, res) => {
     }
 
     // const otp = crypto.randomInt(1000, 9999).toString();
-    const otp = '0000'
-    user.otp = otp;
+    const otp = "0000";
+    const hashedOtp = await bcrypt.hash(otp, 10);
+    user.otp = hashedOtp;
     user.otpExpiry = Date.now() + 10 * 60 * 1000;
     await user.save();
 
@@ -189,10 +203,9 @@ const resendOtp = async (req, res) => {
 
     res.status(200).json({ status: true, message: "OTP resent successfully" });
   } catch (error) {
-    res.status(500).json({ status: false, message: error.message || error });
+    res.status(500).json({ status: false, message: error?.message  || "Internal server error" });
   }
 };
-
 
 // Validation Done
 const login = async (req, res) => {
@@ -209,31 +222,34 @@ const login = async (req, res) => {
   try {
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(400).json({ status: false, message: "Invalid email or password" });
+      return res
+        .status(400)
+        .json({ status: false, message: "Invalid email or password" });
     }
 
-    if (typeof user.password !== 'string') {
-      return res.status(500).json({ status: false, message: "Stored password is invalid." });
+    if (typeof user.password !== "string") {
+      return res
+        .status(500)
+        .json({ status: false, message: "Stored password is invalid." });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.status(400).json({ status: false, message: "Invalid password" });
+      return res
+        .status(400)
+        .json({ status: false, message: "Invalid password" });
     }
 
     if (!user.isVerify) {
       // const otp = crypto.randomInt(1000, 9999).toString();
-      const otp = '0000';
+      const otp = "0000";
       const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
       user.otp = otp;
-      user.otpExpiry = otpExpiry
+      user.otpExpiry = otpExpiry;
       await user.save();
 
-      await sendEmail(
-        user.email,
-        "Confirm your email",
-        `Your OTP is: ${otp}`
-      );
+      await sendEmail(user.email, "Confirm your email", `Your OTP is: ${otp}`);
+
       return res.status(200).json({
         status: true,
         message: "Please verify your email to continue.",
@@ -244,11 +260,15 @@ const login = async (req, res) => {
           email: user.email,
           profilePicture: `${process.env.SERVER_URL}/${user.profilePicture}`,
           isVerify: user.isVerify,
-        }
+        },
       });
     }
 
-    const token = jwt.sign({ id: user._id, email: user.email }, process.env.JWT_SECRET, { expiresIn: '7d' });
+    const token = jwt.sign(
+      { id: user._id, email: user.email },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
 
     res.status(200).json({
       status: true,
@@ -261,22 +281,19 @@ const login = async (req, res) => {
         email: user.email,
         profilePicture: `${process.env.SERVER_URL}/${user.profilePicture}`,
         isVerify: user.isVerify,
-      }
+      },
     });
-
   } catch (error) {
-    console.error("Login Error:", error);
-    res.status(500).json({ status: false, message: "Server error" });
+    res.status(500).json({ status: false, message: "Internal Server Error!" });
   }
 };
-
-
-const path = require('path');
 
 const uploadProfilePicture = async (req, res) => {
   try {
     if (!req.file) {
-      return res.status(400).json({ status: false, message: 'No file uploaded' });
+      return res
+        .status(400)
+        .json({ status: false, message: "No file uploaded" });
     }
 
     const userId = req.user.id;
@@ -288,18 +305,110 @@ const uploadProfilePicture = async (req, res) => {
     );
 
     if (!updatedUser) {
-      return res.status(404).json({ status: false, message: 'User not found' });
+      return res.status(404).json({ status: false, message: "User not found" });
     }
 
     res.status(200).json({
       status: true,
-      message: 'Profile picture uploaded successfully',
+      message: "Profile picture uploaded successfully",
       profilePicture: `${process.env.SERVER_URL}/${updatedUser.profilePicture}`,
     });
   } catch (error) {
     console.error("Error uploading profile picture:", error);
-    res.status(500).json({ status: false, message: "Server error" });
+    res.status(500).json({ status: false, message: "Internal Server Error!" });
   }
 };
 
-module.exports = { signup, verifyOtp, createPassword, resendOtp, login, uploadProfilePicture };
+const forgotPassword = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+
+    const user = await User.findOne({ email });
+    if (!user)
+      return res.status(404).json({ status: false , message: "User not found"});
+
+    //const otp = crypto.randomInt(1000, 9999).toString();
+    const otp = "0000";
+    const hashedOtp = await bcrypt.hash(otp, 10);
+    user.otp = hashedOtp;
+    user.otpExpiry = Date.now() + 10 * 60 * 1000; // 10 mins
+    user.isOtpVerified = false;
+    await user.save();
+
+    // Send OTP via email
+    await sendEmail({
+      to: email,
+      subject: "Your OTP for password reset",
+      text: `Your OTP is ${otp}`,
+    });
+
+    return res.json({  status: true, message: "OTP sent to email." });
+  } catch (error) {
+    next(error);
+  }
+};
+
+
+const verifyResetPassword = async (req, res, next) => {
+  try {
+    const { email, otp } = req.body;
+    const user = await User.findOne({ email });
+    if (!user || !user.otp || !user.otpExpiry) {
+      return res
+        .status(400)
+        .json({ status: false , message: "Invalid or expired OTP."});
+    }
+
+    if (Date.now() > user.otpExpiry) {
+      return res.status(400).json({  status: false, message: "OTP expired." });
+    }
+
+    const isMatch = await bcrypt.compare(otp, user.otp);
+    if (!isMatch) {
+      return res.status(400).json({ status: false, message: "Incorrect OTP." });
+    }
+    user.isOtpVerified = true;
+    await user.save();
+    return res.json({ status: true, message: "OTP verified successfully." });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const resetPassword = async (req, res, next) => {
+  try {
+    const { email, newPassword, confirmPassword } = req.body;
+
+    const user = await User.findOne({ email });
+    if (!user || !user.isOtpVerified) {
+      return res.status(400).json({status: false, message: "OTP verification required." });
+    }
+
+    if (newPassword !== confirmPassword) {
+      return res.status(400).json({ status: false, message: "Passwords do not match." });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    user.password = hashedPassword;
+    user.otp = null;
+    user.otpExpiry = null;
+    user.isOtpVerified = false;
+    await user.save();
+    return res.json({ status: false, message: "Password reset successfully." });
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports = {
+  signup,
+  verifyOtp,
+  createPassword,
+  resendOtp,
+  login,
+  uploadProfilePicture,
+  forgotPassword,
+  verifyResetPassword,
+  resetPassword,
+};

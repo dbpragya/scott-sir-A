@@ -14,7 +14,7 @@ const UserSchema = new mongoose.Schema({
   role: { type: String, enum: ["admin", "user"], default: "user" },
   allNotifications: { type: Boolean, default: true },
   chatNotifications: { type: Boolean, default: true },
-
+  isOtpVerified:{type:Boolean, default:false},
   subscription: {
     planId: { type: mongoose.Schema.Types.ObjectId, ref: 'SubscriptionPlan' },
     startDate: { type: Date },
