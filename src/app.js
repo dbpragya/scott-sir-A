@@ -18,5 +18,6 @@ app.use('/api/notifications', require('./routes/notificationRoutes'));
 app.use("/api/message", require("./routes/messageRoutes"));
 app.use("/api", require("./routes/userandgroupRoutes"));
 app.use("/api/ranking", require("./routes/rankingRoutes"));
+app.use("/.well-known/assetlinks.json", require("./routes/deeplinkRoutes"))
 
 module.exports = app;   
