@@ -11,9 +11,19 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-async function sendEmail(to, subject, text) {
+async function sendEmail({ to, subject, text }) {
+  console.log("Sending email with the following details:");
+  console.log("To:", to);
+  console.log("Subject:", subject);
+  console.log("Text:", text);
+
+  if (!to) {
+    console.error("Error: No recipient email provided");
+    throw new Error("No recipient email provided");
+  }
+
   const mailOptions = {
-    from: `${EMAIL}`, // Removed "MakeItHappen"
+    from: `${EMAIL}`,
     to,
     subject,
     text,
