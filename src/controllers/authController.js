@@ -127,8 +127,7 @@ const verifyOtp = async (req, res) => {
     });
   }
 };
-
-
+  
 // Validation Done
 const createPassword = async (req, res) => {
   const errors = validationResult(req);
@@ -229,45 +228,37 @@ const login = async (req, res) => {
   try {
     const user = await User.findOne({ email });
     if (!user) {
-      return res
-        .status(400)
-        .json({ status: false, message: "Invalid email or password" });
+      return res.status(400).json({ status: false, message: "Invalid email or password" });
     }
 
     if (typeof user.password !== "string") {
-      return res
-        .status(500)
-        .json({ status: false, message: "Stored password is invalid." });
+      return res.status(500).json({ status: false, message: "Stored password is invalid." });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res
-        .status(400)
-        .json({ status: false, message: "Invalid password" });
+      return res.status(400).json({ status: false, message: "Invalid password" });
     }
 
     if (!user.isVerify) {
-      // const otp = crypto.randomInt(1000, 9999).toString();
-      const otp = "0000";
+      // If the user is not verified, generate OTP and send email
+      const otp = "0000"; // This can be generated dynamically
       const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
       user.otp = otp;
       user.otpExpiry = otpExpiry;
       await user.save();
 
-      await sendEmail(user.email, "Confirm your email", `Your OTP is: ${otp}`);
+      // Send verification email with OTP
+      await sendEmail({
+        to: user.email,
+        subject: "Confirm your email",
+        text: `Your OTP is: ${otp}`,
+      });
 
-      return res.status(200).json({
-        status: true,
+      // Respond with a message about email verification
+      return res.status(400).json({
+        status: false,
         message: "Please verify your email to continue.",
-        data: {
-          _id: user._id,
-          first_name: user.first_name,
-          last_name: user.last_name,
-          email: user.email,
-          profilePicture: `${process.env.SERVER_URL}/${user.profilePicture}`,
-          isVerify: user.isVerify,
-        },
       });
     }
 
@@ -291,9 +282,11 @@ const login = async (req, res) => {
       },
     });
   } catch (error) {
+    console.error("Error in login function:", error);
     res.status(500).json({ status: false, message: "Internal Server Error!" });
   }
 };
+
 
 const uploadProfilePicture = async (req, res) => {
   try {
@@ -329,9 +322,8 @@ const uploadProfilePicture = async (req, res) => {
 const forgotPassword = async (req, res, next) => {
   try {
     const { email } = req.body;
-    console.log("Received email:", email); // Log the email received in the request
+    console.log("Received email:", email);
 
-    // Check if email is provided
     if (!email) {
       console.error("Error: Email is required");
       return res.status(400).json({ status: false, message: "Email is required" });
