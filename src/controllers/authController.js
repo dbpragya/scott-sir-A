@@ -38,14 +38,16 @@ const signup = async (req, res) => {
     }
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // const otp = crypto.randomInt(1000, 9999).toString();
+    // OTP generation for testing purposes, will use a static value "0000"
     const otp = "0000";
-    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
+    const hashedOtp = await bcrypt.hash(otp, 10); // Hash the OTP before saving it
+    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // Set expiry time
+
     const newUser = new User({
       first_name,
       last_name,
       email,
-      otp,
+      otp: hashedOtp, // Save the hashed OTP
       otpExpiry,
       password: hashedPassword,
     });
@@ -71,6 +73,7 @@ const signup = async (req, res) => {
 };
 
 
+
 const verifyOtp = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -89,7 +92,7 @@ const verifyOtp = async (req, res) => {
     }
 
     // Use bcrypt to compare the plain OTP with the hashed OTP stored in the database
-    const isMatch = await bcrypt.compare(otp, user.otp); // Compare the plain OTP with the hashed OTP
+    const isMatch = await bcrypt.compare(otp, user.otp); // Compare plain OTP with hashed OTP
     if (!isMatch) {
       return res.status(400).json({ status: false, message: "Incorrect OTP." });
     }
@@ -119,7 +122,7 @@ const verifyOtp = async (req, res) => {
         first_name: user.first_name,
         last_name: user.last_name,
         email: user.email,
-        profilePicture: user.profilePicture ? [`${process.env.LIVE_URL}/${user.profilePicture}`] : '',
+        profilePicture: user.profilePicture ? [`${process.env.LIVE_URL}/${user.profilePicture}`] : [],
         isVerify: user.isVerify,
       },
     });
@@ -130,6 +133,7 @@ const verifyOtp = async (req, res) => {
     });
   }
 };
+
 
 
 
