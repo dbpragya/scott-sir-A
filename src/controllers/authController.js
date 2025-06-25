@@ -360,12 +360,12 @@ const forgotPassword = async (req, res, next) => {
     // Log the details before calling sendEmail
     console.log("Sending OTP to email:", email);
   
+    // Correcting the variable to use 'user' instead of 'newUser'
     await sendEmail({
-  to: newUser.email,
-  subject: "Confirm your email",
-  text: `Your OTP is: ${otp}`,
-});
-
+      to: user.email, // Use 'user' here instead of 'newUser'
+      subject: "Confirm your email",
+      text: `Your OTP is: ${otp}`,
+    });
 
     return res.json({ status: true, message: "OTP sent to email." });
   } catch (error) {
