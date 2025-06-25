@@ -10,10 +10,10 @@ const { validationResult } = require("express-validator");
 // Validation Done
 exports.createEvent = async (req, res) => {
   try {
-    const { name, location, description, votingTime, dates, invitationCustomization } = req.body;    
+    const { name, location, description, votingTime, dates, invitationCustomization } = req.body;
     const userId = req.user.id;
 
-    if(!name || !location || !description || !votingTime || !dates) {
+    if (!name || !location || !description || !votingTime || !dates) {
       return res.status(400).json({ success: false, message: "All fields are required" });
     }
 
@@ -42,13 +42,27 @@ exports.createEvent = async (req, res) => {
     }
 
     let customizationData = {
-      premiumTheme: "Lavender",
+      premiumTheme: "",   // Default to empty for non-premium users
+      default: "Lavender",  // Default theme for non-premium users
     };
 
-    if (hasPremium && invitationCustomization && invitationCustomization.premiumTheme) {
-      customizationData.premiumTheme = invitationCustomization.premiumTheme;
+    if (hasPremium) {
+      // Premium user can select any theme
+      if (invitationCustomization && invitationCustomization.premiumTheme) {
+        customizationData.premiumTheme = invitationCustomization.premiumTheme;
+        customizationData.default = "";  // Set default to empty if premium theme is selected
+      } else {
+        customizationData.default = "Lavender";  // Default theme for premium users
+      }
     } else {
-      console.log("Using default premiumTheme for non-premium or no input:", customizationData.premiumTheme);
+      // Non-premium users can only select the default theme
+      if (invitationCustomization && invitationCustomization.default) {
+        customizationData.default = invitationCustomization.default;
+        customizationData.premiumTheme = "";  // If default is selected, set premiumTheme to empty
+      } else {
+        customizationData.default = "Lavender";  // Default value for non-premium users
+        customizationData.premiumTheme = "";  // Set premiumTheme to empty string
+      }
     }
 
     const newEvent = new Event({
@@ -59,7 +73,7 @@ exports.createEvent = async (req, res) => {
       dates,
       type: "Planned",
       createdBy: userId,
-      invitationCustomization: customizationData,  // This is now an object, not an array
+      invitationCustomization: customizationData,  // Customization based on subscription
     });
 
     await newEvent.save();
@@ -75,6 +89,9 @@ exports.createEvent = async (req, res) => {
 };
 
 
+
+
+
 exports.getAllEvents = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -86,19 +103,23 @@ exports.getAllEvents = async (req, res) => {
 
     const modifiedEvents = events.map(event => ({
       id: event._id, // Add event ID
-      name: event.name,
-      location: event.location,
-      description: event.description,
-      votingTime: event.votingTime, // Assuming this is part of the event
-      dates: event.dates || '', // Ensure empty array if no dates
-      invitationCustomization: event.invitationCustomization || { premiumTheme: "Lavender" }, // Ensure empty object or default
-      creatorProfilePicture: event.createdBy?.profilePicture || '',
-      voteCount: event.votes.length,
-      votersProfilePictures: event.votes.length > 0 ? event.votes.map(vote => vote.user?.profilePicture || '') : '',
-      finalizedDate: event.finalizedDate || '',
+      name: event.name || "", // Default to empty string if no name
+      location: event.location || "", // Default to empty string if no location
+      description: event.description || "", // Default to empty string if no description
+      votingTime: event.votingTime || "", // Default to empty string if no votingTime
+      dates: event.dates && event.dates.length > 0 ? event.dates : [], // Empty array if no dates
+      invitationCustomization: event.invitationCustomization || { premiumTheme: "Lavender", default: "" }, // Ensure default structure if missing
+      creatorProfilePicture: event.createdBy?.profilePicture || "", // Default to empty string if no profile picture
+      voteCount: event.votes.length || 0, // Default to 0 if no votes
+      votersProfilePictures: event.votes.length > 0 ? event.votes.map(vote => vote.user?.profilePicture || "") : [], // Empty array if no votes
+      finalizedDate: event.finalizedDate || '', // Default to empty object if no finalizedDate
     }));
 
-    res.status(200).json({ status: true, message: "Events Fetched successfully", Data: modifiedEvents });
+    res.status(200).json({
+      status: true,
+      message: "Events Fetched successfully",
+      Data: modifiedEvents
+    });
   } catch (error) {
     console.error("Get Events Error:", error);
     res.status(500).json({ status: false, message: "Failed to fetch events" });
@@ -194,6 +215,7 @@ exports.getEventById = async (req, res) => {
     const invitationCustomization = event.invitationCustomization || { premiumTheme: "Lavender" };
 
     const eventDetails = {
+      id: event._id, // Add eventId (same as _id)
       name: event.name || "",
       location: event.location || "",
       description: event.description || "",
@@ -210,6 +232,7 @@ exports.getEventById = async (req, res) => {
     res.status(500).json({ status: false, message: "Server error" });
   }
 };
+
 
 
 
@@ -446,10 +469,13 @@ exports.getInvitedEvents = async (req, res) => {
     // Find events where user is invited, but exclude those created by the user
     const events = await Event.find({
       invitedUsers: userId,
-      createdBy: { $ne: userId },  // Exclude events created by current user
+      createdBy: { $ne: userId },  // Exclude events created by the current user
     }).populate({
       path: "createdBy",
       select: "first_name profilePicture",
+    }).populate({
+      path: "votes.user",
+      select: "profilePicture",
     });
 
     if (events.length === 0) {
@@ -457,13 +483,49 @@ exports.getInvitedEvents = async (req, res) => {
       return res.status(404).json({ success: false, message: "No invited events found for the user." });
     }
 
-    const simplifiedEvents = events.map(event => ({
-      name: event.name,
-      location: event.location,
-      plannerName: event.createdBy?.first_name || 'Unknown',
-      plannerProfilePicture: event.createdBy?.profilePicture || null,
-      finalizedDate: event.finalizedDate,
-    }));
+    const simplifiedEvents = events.map(event => {
+      // Format dates with votes count
+      const votesByDateMap = {};
+      event.votes.forEach(vote => {
+        if (!vote.date) return;
+        const voteDateStr = new Date(vote.date).toISOString().split('T')[0];
+        if (!votesByDateMap[voteDateStr]) {
+          votesByDateMap[voteDateStr] = {
+            count: 0,
+            votersProfilePictures: []
+          };
+        }
+        votesByDateMap[voteDateStr].count++;
+        if (vote.user && vote.user.profilePicture) {
+          votesByDateMap[voteDateStr].votersProfilePictures.push(vote.user.profilePicture);
+        }
+      });
+
+      const datesWithVotes = event.dates.map(d => {
+        const eventDateStr = new Date(d.date).toISOString().split('T')[0];
+        return {
+          date: d.date,
+          timeSlot: d.timeSlot || "", // Default empty string if no timeSlot
+          voteCount: votesByDateMap[eventDateStr]?.count || 0,
+          votersProfilePictures: votesByDateMap[eventDateStr]?.votersProfilePictures || [],
+        };
+      });
+
+      // Return the event details in the desired format
+      return {
+        id: event._id,  // Event ID
+        name: event.name || "",
+        location: event.location || "",
+        description: event.description || "",
+        votingTime: event.votingTime || "",  // Add votingTime if available
+        dates: datesWithVotes || [],  // Default empty array if no dates
+        invitationCustomization: event.invitationCustomization || { premiumTheme: "Lavender", default: "" },
+        creatorProfilePicture: event.createdBy?.profilePicture || "",
+        voteCount: event.votes.length || 0,
+        votersProfilePictures: event.votes.length > 0 ? event.votes.map(vote => vote.user?.profilePicture || "") : [],
+        finalizedDate: event.finalizedDate || {},
+      };
+    });
 
     res.status(200).json({ success: true, events: simplifiedEvents });
   } catch (error) {
@@ -471,6 +533,7 @@ exports.getInvitedEvents = async (req, res) => {
     res.status(500).json({ success: false, message: "Server error" });
   }
 };
+;
 
 
 exports.getVotersByDate = async (req, res) => {
