@@ -80,7 +80,7 @@ exports.createEvent = async (req, res) => {
 
     await checkTopPlannerBadge(userId);
 
-    res.status(201).json({ status: true, message: "Event created successfully", Data: newEvent });
+    res.status(200).json({ status: true, message: "Event created successfully", data: newEvent });
 
   } catch (error) {
     console.error("Create Event Error:", error);
@@ -96,29 +96,66 @@ exports.getAllEvents = async (req, res) => {
   try {
     const userId = req.user.id;
 
+    // Find events created by the user, of type "Planned"
     const events = await Event.find({ type: "Planned", createdBy: userId })
       .sort({ createdAt: -1 })
-      .populate({ path: "createdBy", select: "profilePicture" })
+      .populate({ path: "createdBy", select: "first_name profilePicture" })
       .populate({ path: "votes.user", select: "profilePicture" });
 
-    const modifiedEvents = events.map(event => ({
-      id: event._id, // Add event ID
-      name: event.name || "", // Default to empty string if no name
-      location: event.location || "", // Default to empty string if no location
-      description: event.description || "", // Default to empty string if no description
-      votingTime: event.votingTime || "", // Default to empty string if no votingTime
-      dates: event.dates && event.dates.length > 0 ? event.dates : [], // Empty array if no dates
-      invitationCustomization: event.invitationCustomization || { premiumTheme: "Lavender", default: "" }, // Ensure default structure if missing
-      creatorProfilePicture: event.createdBy?.profilePicture || "", // Default to empty string if no profile picture
-      voteCount: event.votes.length || 0, // Default to 0 if no votes
-      votersProfilePictures: event.votes.length > 0 ? event.votes.map(vote => vote.user?.profilePicture || "") : [], // Empty array if no votes
-      finalizedDate: event.finalizedDate || '', // Default to empty object if no finalizedDate
-    }));
+    // If no events found, return an empty list
+    if (events.length === 0) {
+      return res.status(404).json({ success: false, message: "No events found" });
+    }
+
+    const modifiedEvents = events.map(event => {
+      // Format dates with votes count
+      const votesByDateMap = {};
+      event.votes.forEach(vote => {
+        if (!vote.date) return;
+        const voteDateStr = new Date(vote.date).toISOString().split('T')[0];
+        if (!votesByDateMap[voteDateStr]) {
+          votesByDateMap[voteDateStr] = {
+            count: 0,
+            votersProfilePictures: []
+          };
+        }
+        votesByDateMap[voteDateStr].count++;
+        if (vote.user && vote.user.profilePicture) {
+          votesByDateMap[voteDateStr].votersProfilePictures.push(vote.user.profilePicture);
+        }
+      });
+
+      const datesWithVotes = event.dates.map(d => {
+        const eventDateStr = new Date(d.date).toISOString().split('T')[0];
+        return {
+          date: d.date,
+          timeSlot: d.timeSlot || "", // Default empty string if no timeSlot
+          _id: d._id,  // Include _id for the timeSlot
+          voteCount: votesByDateMap[eventDateStr]?.count || 0,
+          votersProfilePictures: votesByDateMap[eventDateStr]?.votersProfilePictures || [],
+        };
+      });
+
+      // Return the event details in the desired format
+      return {
+        id: event._id,  // Event ID
+        name: event.name || "",
+        location: event.location || "",
+        description: event.description || "",
+        votingTime: event.votingTime || "",  // Add votingTime if available
+        dates: datesWithVotes || [],  // Default empty array if no dates
+        invitationCustomization: event.invitationCustomization || { premiumTheme: "Lavender", default: "" },
+        creatorProfilePicture: event.createdBy?.profilePicture || "",
+        voteCount: event.votes.length || 0,
+        votersProfilePictures: event.votes.length > 0 ? event.votes.map(vote => vote.user?.profilePicture || "") : [],
+        finalizedDate: event.finalizedDate || {}, // Default to empty object if no finalizedDate
+      };
+    });
 
     res.status(200).json({
       status: true,
       message: "Events Fetched successfully",
-      Data: modifiedEvents
+      data: modifiedEvents
     });
   } catch (error) {
     console.error("Get Events Error:", error);
@@ -209,7 +246,7 @@ exports.getEventById = async (req, res) => {
       };
     });
 
-    const invitedUsersProfilePics = event.invitedUsers.map(u => u.profilePicture || null);
+    const invitedUsersProfilePics = event.invitedUsers.map(u => u.profilePicture || '');
 
     // Fetch invitationCustomization, default to "Lavender" if not present
     const invitationCustomization = event.invitationCustomization || { premiumTheme: "Lavender" };
@@ -364,7 +401,7 @@ exports.getInvitedEventDetailsForVoting = async (req, res) => {
     }));
 
     // Collect profile pictures of the invited users
-    const invitedUsersProfilePics = event.invitedUsers.map(user => user.profilePicture || null);
+    const invitedUsersProfilePics = event.invitedUsers.map(user => user.profilePicture || '');
 
     let finalizedDate = "";
     if (event.finalizedDate && event.finalizedDate.date) {
@@ -377,14 +414,14 @@ exports.getInvitedEventDetailsForVoting = async (req, res) => {
       location: event.location,
       description: event.description,
       creator: {
-        name: event.createdBy?.first_name || "Unknown",
-        profilePicture: event.createdBy?.profilePicture || null,
+        name: event.createdBy?.first_name || '',
+        profilePicture: event.createdBy?.profilePicture || '',
       },
       dates: datesWithFormattedDate,
       invitedUsersCount: event.invitedUsers.length,
       invitedUsersProfilePics,
       finalizedDate,  
-      timeSlot: event.finalizedDate?.timeSlot || null,
+      timeSlot: event.finalizedDate?.timeSlot || '',
     };
 
     res.status(200).json({ success: true, event: eventDetails });
@@ -506,6 +543,7 @@ exports.getInvitedEvents = async (req, res) => {
         return {
           date: d.date,
           timeSlot: d.timeSlot || "", // Default empty string if no timeSlot
+          _id: d._id,  // Include _id for the timeSlot
           voteCount: votesByDateMap[eventDateStr]?.count || 0,
           votersProfilePictures: votesByDateMap[eventDateStr]?.votersProfilePictures || [],
         };
@@ -527,13 +565,13 @@ exports.getInvitedEvents = async (req, res) => {
       };
     });
 
-    res.status(200).json({ success: true, events: simplifiedEvents });
+    res.status(200).json({ status: true, message: 'Event Fetched Successfully', data: simplifiedEvents });
   } catch (error) {
     console.error("Get Invited Events Error:", error);
-    res.status(500).json({ success: false, message: "Server error" });
+    res.status(500).json({ status: false, message: "Server error" });
   }
 };
-;
+
 
 
 exports.getVotersByDate = async (req, res) => {
@@ -563,7 +601,7 @@ exports.getVotersByDate = async (req, res) => {
     }).map(vote => ({
       userId: vote.user._id,
       name: vote.user.first_name,
-      profilePicture: vote.user.profilePicture || null
+      profilePicture: vote.user.profilePicture || ''
     }));
 
     res.status(200).json({
