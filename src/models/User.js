@@ -9,12 +9,12 @@ const UserSchema = new mongoose.Schema({
   otp: { type: String, default: null },
   otpExpiry: { type: Date, default: null },
   deviceToken: { type: [String], default: [] },
-  isVerify: { type: Boolean, default: null },
+  isVerify: { type: Boolean, default: false },
   status: { type: Boolean, default: true },
   role: { type: String, enum: ["admin", "user"], default: "user" },
   allNotifications: { type: Boolean, default: true },
   chatNotifications: { type: Boolean, default: true },
-
+  isOtpVerified:{type:Boolean, default:false},
   subscription: {
     planId: { type: mongoose.Schema.Types.ObjectId, ref: 'SubscriptionPlan' },
     startDate: { type: Date },

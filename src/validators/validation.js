@@ -1,5 +1,8 @@
 const { body, param, check, validationResult } = require("express-validator");
+<<<<<<< HEAD
 const mongoose = require('mongoose');
+=======
+>>>>>>> 3556dbf60d67efd3c8de61c1a090e5c12f042ce7
 
 const createEventValidation = [
   body("name")
@@ -120,6 +123,24 @@ const signupValidationRules = [
     .notEmpty().withMessage('Email is required')
     .isEmail().withMessage('Invalid email address')
     .normalizeEmail(),
+<<<<<<< HEAD
+=======
+  
+    check('password')
+    .trim()
+    .notEmpty().withMessage('Password is required')
+    .isLength({ min: 6 }).withMessage('Password must be at least 6 characters long'),
+    // .matches(/[A-Z]/).withMessage('Password must contain at least one uppercase letter')  // Optional: Ensure at least one uppercase letter
+    // .matches(/[a-z]/).withMessage('Password must contain at least one lowercase letter')  // Optional: Ensure at least one lowercase letter
+    // .matches(/[0-9]/).withMessage('Password must contain at least one number')  // Optional: Ensure at least one number
+    // .matches(/[@$!%*?&]/).withMessage('Password must contain at least one special character'),  // Optional: Ensure at least one special character
+
+  // Confirm Password Validation
+  check('confirmPassword')
+    .trim()
+    .notEmpty().withMessage('Confirm Password is required')
+    .custom((value, { req }) => value === req.body.password).withMessage('Passwords do not match'),
+>>>>>>> 3556dbf60d67efd3c8de61c1a090e5c12f042ce7
 ];
 
 
@@ -160,6 +181,37 @@ const resendOtpValidationRules = [
     .normalizeEmail(),
 ];
 
+<<<<<<< HEAD
+=======
+const emailValidationRules = [check('email')
+    .trim()
+    .notEmpty().withMessage('Email is required')
+    .isEmail().withMessage('Invalid email address')
+    .normalizeEmail()
+  ]
+
+const resetPasswordRules =  [
+    check('email')
+    .trim()
+    .notEmpty().withMessage('Email is required')
+    .isEmail().withMessage('Invalid email address')
+    .normalizeEmail(),
+
+    check('password')
+    .notEmpty().withMessage('Password is required')
+    .isLength({ min: 8 }).withMessage('Password must be at least 8 characters')
+    .matches(/[a-z]/).withMessage('Password must contain at least one lowercase letter')
+    .matches(/[A-Z]/).withMessage('Password must contain at least one uppercase letter')
+    .matches(/\d/).withMessage('Password must contain at least one number')
+    .matches(/[^A-Za-z0-9]/).withMessage('Password must contain at least one special character'),
+
+  check('confirmPassword')
+    .notEmpty().withMessage('Confirm password is required')
+    .custom((value, { req }) => value === req.body.password)
+    .withMessage('Passwords do not match'),
+]
+
+>>>>>>> 3556dbf60d67efd3c8de61c1a090e5c12f042ce7
 
 const loginValidationRules = [
   check('email')
@@ -229,6 +281,21 @@ const updateChatNotificationsValidationRules = [
     .isBoolean().withMessage('chatNotifications must be a boolean value'),
 ];
 
+<<<<<<< HEAD
+=======
+const handleValidationResult = (req, res, next) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    const message = errors.array();
+    return res.status(400).json({
+      status: false,
+      message: message[0].msg || "Validation failed",
+    });
+  }
+  next();
+};
+
+>>>>>>> 3556dbf60d67efd3c8de61c1a090e5c12f042ce7
 
 module.exports = {
   createEventValidation,
@@ -242,5 +309,13 @@ module.exports = {
   updateProfileValidationRules,
   changePasswordValidationRules,
   updateAllNotificationsValidationRules,
+<<<<<<< HEAD
   updateChatNotificationsValidationRules
 };
+=======
+  updateChatNotificationsValidationRules,
+  emailValidationRules,
+  handleValidationResult,
+  resetPasswordRules,
+};
+>>>>>>> 3556dbf60d67efd3c8de61c1a090e5c12f042ce7

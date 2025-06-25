@@ -211,12 +211,19 @@ exports.getShareLink = async (req, res) => {
       return res.status(404).json({ success: false, message: "Event not found" });
     }
 
-    const shareLink = `https://oyster-app-g2hmu.ondigitalocean.app/api/events/invite?eventId=${eventId}`;
+    const shareLink = `http://localhost:5000/api/events/invite?eventId=${eventId}`;
 
+<<<<<<< HEAD
     res.status(200).json({ success: true, link: shareLink });
   } catch (error) {
     console.error("Get Share Link Error:", error);
     res.status(500).json({ success: false, message: "Failed to generate share link" });
+=======
+    res.status(200).json({ status: true, link: shareLink });
+  } catch (error) {
+    console.error("Get Share Link Error:", error);  
+    res.status(500).json({ status: false, message: "Failed to generate share link" });
+>>>>>>> 3556dbf60d67efd3c8de61c1a090e5c12f042ce7
   }
 };
 
@@ -289,7 +296,9 @@ exports.handleInviteLink = async (req, res) => {
 exports.getInvitedEventDetailsForVoting = async (req, res) => {
   try {
     const { eventId } = req.params;
+    const userId = req.user.id;
 
+    // Fetch the event by its ID and populate the necessary fields
     const event = await Event.findById(eventId)
       .populate({ path: 'createdBy', select: 'first_name profilePicture' })
       .populate({ path: 'invitedUsers', select: 'profilePicture' });
@@ -298,10 +307,22 @@ exports.getInvitedEventDetailsForVoting = async (req, res) => {
       return res.status(404).json({ success: false, message: "Event not found" });
     }
 
+<<<<<<< HEAD
     if (event.createdBy._id.toString() === req.user.id) {
       return res.status(403).json({ success: false, message: "Event creator cannot access this voting details." });
+=======
+    // Check if the user is invited to the event
+    if (!event.invitedUsers.some(user => user._id.toString() === userId)) {
+      return res.status(403).json({ status: false, message: "User is not invited to this event." });
     }
 
+    // Prevent the event creator from accessing voting details
+    if (event.createdBy._id.toString() === userId) {
+      return res.status(403).json({ status: false, message: "Event creator cannot access this voting details." });
+>>>>>>> 3556dbf60d67efd3c8de61c1a090e5c12f042ce7
+    }
+
+    // Helper function to format date
     const getFormattedDate = (dateStr) => {
       const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
       const dateObj = new Date(dateStr);
@@ -314,11 +335,13 @@ exports.getInvitedEventDetailsForVoting = async (req, res) => {
       return `${weekday} ${year}-${month}-${day}`;
     };
 
+    // Format event dates
     const datesWithFormattedDate = event.dates.map(dateObj => ({
       date: getFormattedDate(dateObj.date),
       timeSlot: dateObj.timeSlot,
     }));
 
+    // Collect profile pictures of the invited users
     const invitedUsersProfilePics = event.invitedUsers.map(user => user.profilePicture || null);
 
     let finalizedDate = "";
@@ -326,6 +349,10 @@ exports.getInvitedEventDetailsForVoting = async (req, res) => {
       finalizedDate = getFormattedDate(event.finalizedDate.date);
     }
 
+<<<<<<< HEAD
+=======
+    // Construct event details response
+>>>>>>> 3556dbf60d67efd3c8de61c1a090e5c12f042ce7
     const eventDetails = {
       name: event.name,
       location: event.location,
@@ -373,6 +400,10 @@ exports.voteOnEvent = async (req, res) => {
       return res.status(403).json({ success: false, message: "Event creator cannot vote for their own event." });
     }
 
+    if (!event.invitedUsers.some(user => user.toString() === userId)) {
+      return res.status(403).json({ status: false, message: "You are not invited to vote on this event." });
+    }
+
     if (!selectedDate) {
       return res.status(400).json({ success: false, message: "Please select a date to vote." });
     }
@@ -387,11 +418,15 @@ exports.voteOnEvent = async (req, res) => {
       return res.status(400).json({ success: false, message: "You already voted" });
     }
 
+<<<<<<< HEAD
     event.votes.push({ user: userId, date: new Date(selectedDate).toISOString().split('T')[0] });  
     if (!event.invitedUsers.some(u => u.toString() === userId)) {
       event.invitedUsers.push(userId);
     }
 
+=======
+    event.votes.push({ user: userId, date: new Date(selectedDate).toISOString().split('T')[0] });
+>>>>>>> 3556dbf60d67efd3c8de61c1a090e5c12f042ce7
     await event.save();
 
     let group = await Group.findOne({ eventId });
@@ -420,11 +455,14 @@ exports.getInvitedEvents = async (req, res) => {
   try {
     const userId = req.user.id;
 
-    const events = await Event.find({ invitedUsers: userId })
-      .populate({
-        path: "createdBy",
-        select: "first_name profilePicture",
-      });
+    // Find events where user is invited, but exclude those created by the user
+    const events = await Event.find({
+      invitedUsers: userId,
+      createdBy: { $ne: userId },  // Exclude events created by current user
+    }).populate({
+      path: "createdBy",
+      select: "first_name profilePicture",
+    });
 
     if (events.length === 0) {
       console.log("No invited events found for user.");
@@ -446,23 +484,36 @@ exports.getInvitedEvents = async (req, res) => {
   }
 };
 
+
 exports.getVotersByDate = async (req, res) => {
   try {
     const { eventId } = req.params;
     const { selectedDate } = req.query;
 
     if (!selectedDate) {
+<<<<<<< HEAD
       return res.status(400).json({ success: false, message: "Please provide selectedDate query parameter." });
+=======
+      return res.status(400).json({ status: false, message: "Please provide selectedDate query parameter." });
+>>>>>>> 3556dbf60d67efd3c8de61c1a090e5c12f042ce7
     }
 
     const event = await Event.findById(eventId).populate('votes.user', 'first_name profilePicture');
 
     if (!event) {
+<<<<<<< HEAD
       return res.status(404).json({ success: false, message: "Event not found." });
     }
 
     if (event.createdBy.toString() !== req.user.id) {
       return res.status(403).json({ success: false, message: "Only event creator can view voters for a date." });
+=======
+      return res.status(404).json({ status: false, message: "Event not found." });
+    }
+
+    if (event.createdBy.toString() !== req.user.id) {
+      return res.status(403).json({ status: false, message: "Only event creator can view voters for a date." });
+>>>>>>> 3556dbf60d67efd3c8de61c1a090e5c12f042ce7
     }
 
     const selectedDateISO = new Date(selectedDate).toISOString().split('T')[0];
@@ -477,14 +528,22 @@ exports.getVotersByDate = async (req, res) => {
     }));
 
     res.status(200).json({
+<<<<<<< HEAD
       success: true,
+=======
+      status: true,
+>>>>>>> 3556dbf60d67efd3c8de61c1a090e5c12f042ce7
       date: selectedDateISO,
       voters: votersForDate,
       totalVoters: votersForDate.length,
     });
   } catch (error) {
     console.error("Get Voters By Date Error:", error);
+<<<<<<< HEAD
     res.status(500).json({ success: false, message: "Server error" });
+=======
+    res.status(500).json({ status: false, message: "Server error" });
+>>>>>>> 3556dbf60d67efd3c8de61c1a090e5c12f042ce7
   }
 };
 
@@ -495,31 +554,51 @@ exports.finalizeEventDate = async (req, res) => {
     const { selectedDate } = req.body;
 
     if (!selectedDate) {
+<<<<<<< HEAD
       return res.status(400).json({ success: false, message: "Please provide the selected date to finalize." });
+=======
+      return res.status(400).json({ status: false, message: "Please provide the selected date to finalize." });
+>>>>>>> 3556dbf60d67efd3c8de61c1a090e5c12f042ce7
     }
 
     const event = await Event.findById(eventId).populate('votes.user', '_id first_name');
 
     if (!event) {
+<<<<<<< HEAD
       return res.status(404).json({ success: false, message: "Event not found." });
+=======
+      return res.status(404).json({ status: false, message: "Event not found." });
+>>>>>>> 3556dbf60d67efd3c8de61c1a090e5c12f042ce7
     }
 
     if (event.finalizedDate && event.finalizedDate.date) {
       return res.status(400).json({
+<<<<<<< HEAD
         success: false,
+=======
+        status: false,
+>>>>>>> 3556dbf60d67efd3c8de61c1a090e5c12f042ce7
         message: "Event date has already been finalized and cannot be changed."
       });
     }
     
     if (event.createdBy.toString() !== req.user.id) {
+<<<<<<< HEAD
       return res.status(403).json({ success: false, message: "Access denied. Only event creator can finalize the date." });
+=======
+      return res.status(403).json({ status: false, message: "Access denied. Only event creator can finalize the date." });
+>>>>>>> 3556dbf60d67efd3c8de61c1a090e5c12f042ce7
     }
 
     const selectedDateISO = new Date(selectedDate).toISOString().split('T')[0];
     const dateOption = event.dates.find(d => new Date(d.date).toISOString().split('T')[0] === selectedDateISO);
 
     if (!dateOption) {
+<<<<<<< HEAD
       return res.status(400).json({ success: false, message: "Selected date option not found in event." });
+=======
+      return res.status(400).json({ status: false, message: "Selected date option not found in event." });
+>>>>>>> 3556dbf60d67efd3c8de61c1a090e5c12f042ce7
     }
 
     event.finalizedDate = {
@@ -541,9 +620,17 @@ exports.finalizeEventDate = async (req, res) => {
       createNotification(vote.user._id, title, message)
     ));
 
+<<<<<<< HEAD
     res.status(200).json({ success: true, message: "Date finalized successfully.", finalizedDate: event.finalizedDate });
   } catch (error) {
     console.error("Finalize Event Date Error:", error);
     res.status(500).json({ success: false, message: "Server error" });
+=======
+    res.status(200).json({ status: true, message: "Date finalized successfully.", finalizedDate: event.finalizedDate });
+  } catch (error) {
+    console.error("Finalize Event Date Error:", error);
+    res.status(500).json({ status: false, message: "Server error" });
+>>>>>>> 3556dbf60d67efd3c8de61c1a090e5c12f042ce7
   }
 };
+
