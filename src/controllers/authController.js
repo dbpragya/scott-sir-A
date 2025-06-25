@@ -411,8 +411,4 @@ module.exports = {
   forgotPassword,
   verifyResetPassword,
   resetPassword,
-<<<<<<< HEAD
 };
-=======
-};
->>>>>>> 3556dbf60d67efd3c8de61c1a090e5c12f042ce7

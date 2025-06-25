@@ -1,8 +1,4 @@
 const { body, param, check, validationResult } = require("express-validator");
-<<<<<<< HEAD
-const mongoose = require('mongoose');
-=======
->>>>>>> 3556dbf60d67efd3c8de61c1a090e5c12f042ce7
 
 const createEventValidation = [
   body("name")
@@ -123,8 +119,6 @@ const signupValidationRules = [
     .notEmpty().withMessage('Email is required')
     .isEmail().withMessage('Invalid email address')
     .normalizeEmail(),
-<<<<<<< HEAD
-=======
   
     check('password')
     .trim()
@@ -140,7 +134,6 @@ const signupValidationRules = [
     .trim()
     .notEmpty().withMessage('Confirm Password is required')
     .custom((value, { req }) => value === req.body.password).withMessage('Passwords do not match'),
->>>>>>> 3556dbf60d67efd3c8de61c1a090e5c12f042ce7
 ];
 
 
@@ -181,8 +174,6 @@ const resendOtpValidationRules = [
     .normalizeEmail(),
 ];
 
-<<<<<<< HEAD
-=======
 const emailValidationRules = [check('email')
     .trim()
     .notEmpty().withMessage('Email is required')
@@ -211,7 +202,6 @@ const resetPasswordRules =  [
     .withMessage('Passwords do not match'),
 ]
 
->>>>>>> 3556dbf60d67efd3c8de61c1a090e5c12f042ce7
 
 const loginValidationRules = [
   check('email')
@@ -281,8 +271,6 @@ const updateChatNotificationsValidationRules = [
     .isBoolean().withMessage('chatNotifications must be a boolean value'),
 ];
 
-<<<<<<< HEAD
-=======
 const handleValidationResult = (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -295,7 +283,6 @@ const handleValidationResult = (req, res, next) => {
   next();
 };
 
->>>>>>> 3556dbf60d67efd3c8de61c1a090e5c12f042ce7
 
 module.exports = {
   createEventValidation,
@@ -309,13 +296,8 @@ module.exports = {
   updateProfileValidationRules,
   changePasswordValidationRules,
   updateAllNotificationsValidationRules,
-<<<<<<< HEAD
-  updateChatNotificationsValidationRules
-};
-=======
   updateChatNotificationsValidationRules,
   emailValidationRules,
   handleValidationResult,
   resetPasswordRules,
 };
->>>>>>> 3556dbf60d67efd3c8de61c1a090e5c12f042ce7

@@ -44,11 +44,7 @@ exports.updateProfile = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({
-<<<<<<< HEAD
-      success: false,
-=======
       status: false,
->>>>>>> 3556dbf60d67efd3c8de61c1a090e5c12f042ce7
       message: errors.array()[0].msg,
     });
   }
@@ -135,11 +131,7 @@ exports.changePassword = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ 
-<<<<<<< HEAD
-      success: false, 
-=======
       status: false, 
->>>>>>> 3556dbf60d67efd3c8de61c1a090e5c12f042ce7
       message: errors.array()[0].msg,
     });
   }
@@ -147,11 +139,7 @@ exports.changePassword = async (req, res) => {
   const { currentPassword, newPassword, confirmPassword } = req.body;
 
   if (currentPassword === newPassword) {
-<<<<<<< HEAD
-    return res.status(400).json({ success: false, message: 'New password cannot be the same as the current password.' });
-=======
     return res.status(400).json({ status: false, message: 'New password cannot be the same as the current password.' });
->>>>>>> 3556dbf60d67efd3c8de61c1a090e5c12f042ce7
   }
 
   try {
@@ -180,17 +168,10 @@ exports.changePassword = async (req, res) => {
 
 exports.logout = (req, res) => {
   try {
-<<<<<<< HEAD
-    return res.status(200).json({ success: true, message: 'Logged out successfully.' });
-  } catch (error) {
-    console.error(error);
-    return res.status(500).json({ success: false, message: 'Server error, please try again later.' }); 
-=======
     return res.status(200).json({ status: true, message: 'Logged out successfully.' });
   } catch (error) {
     console.error(error);
     return res.status(500).json({ status: false, message: 'Server error, please try again later.' }); 
->>>>>>> 3556dbf60d67efd3c8de61c1a090e5c12f042ce7
   }
 };
 
@@ -199,11 +180,7 @@ exports.updateAllNotifications = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ 
-<<<<<<< HEAD
-      success: false, 
-=======
       status: false, 
->>>>>>> 3556dbf60d67efd3c8de61c1a090e5c12f042ce7
       message: errors.array()[0].msg,
     });
   }
@@ -213,27 +190,16 @@ exports.updateAllNotifications = async (req, res) => {
   try {
     const user = await User.findById(req.user.id);  
     if (!user) {
-<<<<<<< HEAD
-      return res.status(404).json({ success: false, message: 'User not found.' });
-=======
       return res.status(404).json({ status: false, message: 'User not found.' });
->>>>>>> 3556dbf60d67efd3c8de61c1a090e5c12f042ce7
     }
 
     user.allNotifications = allNotifications;
     await user.save();
 
-<<<<<<< HEAD
-    return res.status(200).json({ success: true, message: 'All notifications updated successfully.' });
-  } catch (error) {
-    console.error(error);
-    return res.status(500).json({ success: false, message: 'Server error, please try again later.' });
-=======
     return res.status(200).json({ status: true, message: 'All notifications updated successfully.' });
   } catch (error) {
     console.error(error);
     return res.status(500).json({ status: false, message: 'Server error, please try again later.' });
->>>>>>> 3556dbf60d67efd3c8de61c1a090e5c12f042ce7
   }
 };
 
@@ -242,11 +208,7 @@ exports.updateChatNotifications = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({
-<<<<<<< HEAD
-      success: false,
-=======
       status: false,
->>>>>>> 3556dbf60d67efd3c8de61c1a090e5c12f042ce7
       message: errors.array()[0].msg,
     });
   }
@@ -256,27 +218,16 @@ exports.updateChatNotifications = async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
     if (!user) {
-<<<<<<< HEAD
-      return res.status(404).json({ success: false, message: 'User not found.' });
-=======
       return res.status(404).json({ status: false, message: 'User not found.' });
->>>>>>> 3556dbf60d67efd3c8de61c1a090e5c12f042ce7
     }
 
     user.chatNotifications = chatNotifications;
     await user.save();
 
-<<<<<<< HEAD
-    return res.status(200).json({ success: true, message: 'Chat notifications updated successfully.' });
-  } catch (error) {
-    console.error(error);
-    return res.status(500).json({ success: false, message: 'Server error, please try again later.' });
-=======
     return res.status(200).json({ status: true, message: 'Chat notifications updated successfully.' });
   } catch (error) {
     console.error(error);
     return res.status(500).json({ status: false, message: 'Server error, please try again later.' });
->>>>>>> 3556dbf60d67efd3c8de61c1a090e5c12f042ce7
   }
 };
 
@@ -285,19 +236,11 @@ exports.getPlan = async (req, res) => {
   try {
     const plan = await SubscriptionPlan.findOne();
     if (!plan) {
-<<<<<<< HEAD
-      return res.status(404).json({ success: false, message: 'Subscription plan not found' });
-    }
-    res.json(plan);
-  } catch (error) {
-    res.status(500).json({ success: false, message: 'Server error, please try again later.' });
-=======
       return res.status(404).json({ status: false, message: 'Subscription plan not found' });
     }
     res.json(plan);
   } catch (error) {
     res.status(500).json({ status: false, message: 'Server error, please try again later.' });
->>>>>>> 3556dbf60d67efd3c8de61c1a090e5c12f042ce7
   }
 };
 
@@ -307,29 +250,17 @@ exports.purchasePlan = async (req, res) => {
     const { paymentId } = req.body;
 
     if (!paymentId) {
-<<<<<<< HEAD
-      return res.status(400).json({ success: false, message: 'paymentId is required' });
-=======
       return res.status(400).json({ status: false, message: 'paymentId is required' });
->>>>>>> 3556dbf60d67efd3c8de61c1a090e5c12f042ce7
     }
 
     const user = await User.findById(userId);
     if (!user) {
-<<<<<<< HEAD
-      return res.status(404).json({ success: false, message: 'User not found.' });
-=======
       return res.status(404).json({ status: false, message: 'User not found.' });
->>>>>>> 3556dbf60d67efd3c8de61c1a090e5c12f042ce7
     }
 
     const plan = await SubscriptionPlan.findOne(); 
     if (!plan) {
-<<<<<<< HEAD
-      return res.status(404).json({ success: false, message: 'Subscription plan not found' });
-=======
       return res.status(404).json({ status: false, message: 'Subscription plan not found' });
->>>>>>> 3556dbf60d67efd3c8de61c1a090e5c12f042ce7
     }
 
     const now = new Date();
@@ -361,15 +292,9 @@ exports.purchasePlan = async (req, res) => {
       if (new Date(user.subscription.expiryDate) < expiryDate) {
         user.subscription.expiryDate = expiryDate;
         await user.save();
-<<<<<<< HEAD
-        return res.status(200).json({ success: true, message: 'Subscription extended', subscription: user.subscription });
-      }
-      return res.status(200).json({  success: true, message: 'Subscription already active', subscription: user.subscription });
-=======
         return res.status(200).json({ status: true, message: 'Subscription extended', subscription: user.subscription });
       }
       return res.status(200).json({  status: true, message: 'Subscription already active', subscription: user.subscription });
->>>>>>> 3556dbf60d67efd3c8de61c1a090e5c12f042ce7
     }
 
     user.subscription = {
@@ -382,16 +307,9 @@ exports.purchasePlan = async (req, res) => {
 
     await user.save();
 
-<<<<<<< HEAD
-    return res.status(201).json({ success: true, message: 'Subscription activated', subscription: user.subscription });
-  } catch (error) {
-    console.error('Error in purchasePlan:', error);
-    return res.status(500).json({ success: false, message: 'Server error' });
-=======
     return res.status(201).json({ status: true, message: 'Subscription activated', subscription: user.subscription });
   } catch (error) {
     console.error('Error in purchasePlan:', error);
     return res.status(500).json({ status: false, message: 'Server error' });
->>>>>>> 3556dbf60d67efd3c8de61c1a090e5c12f042ce7
   }
 };
