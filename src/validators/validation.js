@@ -1,29 +1,5 @@
-const { body } = require("express-validator");
-
-const signupValidation = [
-  body("first_name")
-    .notEmpty()
-    .withMessage("First name is required"),
-  body("last_name")
-    .notEmpty()
-    .withMessage("Last name is required"),
-  body("email")
-    .notEmpty()
-    .withMessage("Email is required")
-    .isEmail()
-    .withMessage("Please enter a valid email address"),
-];
-
-const verifyOtpValidation = [
-  body("otp")
-    .notEmpty()
-    .withMessage("Otp is required"),
-  body("email")
-    .notEmpty()
-    .withMessage("Email is required")
-    .isEmail()
-    .withMessage("Please enter a valid email address"),
-];
+const { body, param, check, validationResult } = require("express-validator");
+const mongoose = require('mongoose');
 
 const createEventValidation = [
   body("name")
@@ -34,22 +10,23 @@ const createEventValidation = [
 
   body("location")
     .optional()
-     .notEmpty()
-    .withMessage("Location is required"),
+    .notEmpty()
+    .withMessage("Location is required")
+    .isString()
+    .withMessage("Location must be a string"),
 
-body("description")
-  .optional()
-  .notEmpty()
-  .withMessage("Description is required")
-  .isString()
-  .withMessage("Description must be a string")
-  .custom(value => {
-    if (/^\d+$/.test(value)) {
-      throw new Error("Description cannot be numeric only");
-    }
-    return true;
-  }),
-
+  body("description")
+    .optional()
+    .notEmpty()
+    .withMessage("Description is required")
+    .isString()
+    .withMessage("Description must be a string")
+    .custom(value => {
+      if (/^\d+$/.test(value)) {
+        throw new Error("Description cannot be numeric only");
+      }
+      return true;
+    }),
 
   body("votingTime")
     .notEmpty()
@@ -76,13 +53,194 @@ body("description")
 
   body("invitationCustomization").optional().isObject(),
 
-  body("invitationCustomization.premiumTheme").optional()
+  body("invitationCustomization.premiumTheme")
+    .optional()
     .isIn(["Lavender", "Make blue", "sku blue", "spicy red", "summer", "night light"])
     .withMessage("Invalid premiumTheme value"),
 ];
 
+const voteOnEventValidation = [
+  param("eventId")
+    .notEmpty()
+    .withMessage("Event ID is required")
+    .isMongoId()
+    .withMessage("Event ID must be a valid MongoDB ObjectId"),
+
+  body("selectedDate")
+    .notEmpty()
+    .withMessage("Please select a date to vote.")
+    .isISO8601()
+    .toDate()
+    .custom(value => {
+      const dateOnly = new Date(value).toISOString().split('T')[0];
+      if (new Date(value).toISOString().split('T')[1] !== "00:00:00.000Z") {
+        throw new Error("Time should not be selected, only the date.");
+      }
+      return true;
+    })
+    .withMessage("Selected date must be a valid ISO 8601 date without time"),
+];
+
+const finalizeEventDateValidation = [
+  param("eventId")
+    .notEmpty()
+    .withMessage("Event ID is required")
+    .isMongoId()
+    .withMessage("Event ID must be a valid MongoDB ObjectId"),
+
+  body("selectedDate")
+    .notEmpty()
+    .withMessage("Please provide the selected date to finalize.")
+    .isISO8601()
+    .toDate()
+    .withMessage("Selected date must be a valid ISO 8601 date")
+    .custom(value => {
+      if (new Date(value).toISOString().split('T')[1] !== "00:00:00.000Z") {
+        throw new Error("Time should not be selected, only the date.");
+      }
+      return true;
+    }),
+];
+
+const signupValidationRules = [
+  check('first_name')
+    .trim()
+    .notEmpty().withMessage('First name is required')
+    .isLength({ min: 2 }).withMessage('First name must be at least 2 characters long')
+    .matches(/^[A-Za-z\s]+$/).withMessage('First name can only contain lettera'),
+
+  check('last_name')
+    .trim()
+    .notEmpty().withMessage('Last name is required')
+    .isLength({ min: 2 }).withMessage('Last name must be at least 2 characters long')
+    .matches(/^[A-Za-z\s]+$/).withMessage('Last name can only contain letters'),
+
+  check('email')
+    .trim()
+    .notEmpty().withMessage('Email is required')
+    .isEmail().withMessage('Invalid email address')
+    .normalizeEmail(),
+];
+
+
+const verifyOtpValidationRules = [
+  check('email')
+    .trim()
+    .notEmpty().withMessage('Email is required')
+    .isEmail().withMessage('Invalid email address')
+    .normalizeEmail(),
+
+  check('otp')
+    .trim()
+    .notEmpty().withMessage('OTP is required')
+    .isLength({ min: 4, max: 4 }).withMessage('OTP must be 4 digits')
+    .isNumeric().withMessage('OTP must be a number'),
+];
+
+
+const createPasswordValidationRules = [
+  check('password')
+    .notEmpty().withMessage('Password is required')
+    .isLength({ min: 8 }).withMessage('Password must be at least 8 characters')
+    .matches(/[a-z]/).withMessage('Password must contain at least one lowercase letter')
+    .matches(/[A-Z]/).withMessage('Password must contain at least one uppercase letter')
+    .matches(/\d/).withMessage('Password must contain at least one number')
+    .matches(/[^A-Za-z0-9]/).withMessage('Password must contain at least one special character'),
+
+  check('confirmPassword')
+    .notEmpty().withMessage('Confirm password is required')
+    .custom((value, { req }) => value === req.body.password)
+    .withMessage('Passwords do not match'),
+];
+
+const resendOtpValidationRules = [
+  body('email')
+    .notEmpty().withMessage('Email is required')
+    .isEmail().withMessage('Invalid email format')
+    .normalizeEmail(),
+];
+
+
+const loginValidationRules = [
+  check('email')
+    .trim()
+    .notEmpty().withMessage('Email is required')
+    .isEmail().withMessage('Invalid email address')
+    .normalizeEmail(),
+
+  check('password')
+    .notEmpty().withMessage('Password is required'),
+];
+
+const updateProfileValidationRules = [
+  body('first_name')
+    .optional()
+    .trim()
+    .notEmpty().withMessage('First name cannot be empty')
+    .isLength({ min: 2 }).withMessage('First name must be at least 2 characters')
+    .matches(/^[A-Za-z\s]+$/).withMessage('First name can only contain letters'),
+
+  body('last_name')
+    .optional()
+    .trim()
+    .notEmpty().withMessage('Last name cannot be empty')
+    .isLength({ min: 2 }).withMessage('Last name must be at least 2 characters')
+    .matches(/^[A-Za-z\s]+$/).withMessage('Last name can only contain letters'),
+
+  body('email')
+    .optional()
+    .trim()
+    .notEmpty().withMessage('Email cannot be empty')
+    .isEmail().withMessage('Invalid email address')
+    .normalizeEmail(),
+];
+
+
+const changePasswordValidationRules = [ 
+  body('currentPassword')
+    .notEmpty().withMessage('Current password is required'),
+
+  body('newPassword')
+    .notEmpty().withMessage('New password is required')
+    .isLength({ min: 8 }).withMessage('New password must be at least 8 characters long')
+    .matches(/[a-z]/).withMessage('Password must contain at least one lowercase letter')
+    .matches(/[A-Z]/).withMessage('Password must contain at least one uppercase letter')
+    .matches(/\d/).withMessage('Password must contain at least one number')
+    .matches(/[^A-Za-z0-9]/).withMessage('Password must contain at least one special character'),
+
+  body('confirmPassword')
+    .notEmpty().withMessage('Confirm password is required')
+    .custom((value, { req }) => value === req.body.newPassword)
+    .withMessage('Confirm password must match new password'),
+];
+
+const updateAllNotificationsValidationRules = [
+  body('allNotifications')
+    .exists().withMessage('allNotifications field is required')
+    .notEmpty().withMessage('allNotifications field cannot be empty')
+    .isBoolean().withMessage('allNotifications must be a boolean value'),
+];
+
+
+const updateChatNotificationsValidationRules = [
+  body('chatNotifications')
+    .exists().withMessage('chatNotifications field is required')
+    .notEmpty().withMessage('chatNotifications field cannot be empty')
+    .isBoolean().withMessage('chatNotifications must be a boolean value'),
+];
+
+
 module.exports = {
-  signupValidation,
-  verifyOtpValidation,
   createEventValidation,
+  voteOnEventValidation,
+  finalizeEventDateValidation,
+  signupValidationRules,
+  verifyOtpValidationRules,
+  createPasswordValidationRules,
+  resendOtpValidationRules,
+  loginValidationRules,
+  updateProfileValidationRules,
+  changePasswordValidationRules,
+  updateAllNotificationsValidationRules,
+  updateChatNotificationsValidationRules
 };

@@ -4,6 +4,7 @@ const mongoose = require('mongoose');
 exports.getTopRankings = async (req, res) => {
   try {
     const limit = 7;
+    const loggedInUserId = req.user.id; 
 
     const premiumRankings = await Event.aggregate([
       {
@@ -72,16 +73,21 @@ exports.getTopRankings = async (req, res) => {
     ]);
 
     const combinedRankings = [...premiumRankings, ...nonPremiumRankings];
-
     const rankedWithPosition = combinedRankings.map((user, index) => ({
-      position: index + 1, 
+      position: index + 1,
       ...user,
     }));
 
-    return res.json({ success: true, rankings: rankedWithPosition });
+    const userRanking = rankedWithPosition.find(user => user.userId.toString() === loggedInUserId);
+    const yourRanking = userRanking ? userRanking.position : [];
+
+    return res.json({
+      success: true,
+      yourRanking: yourRanking,
+      rankings: rankedWithPosition,
+    });
   } catch (error) {
-    console.error('Error in getRankingsWithPremiumPriority:', error);
-    return res.status(500).json({ success: false, message: 'Server error', error: error.message });
+    console.error('Error in getTopRankings:', error);
+    return res.success(500).json({ success: false, message: 'Server error', error: error.message });
   }
 };
-
