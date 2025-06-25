@@ -325,31 +325,36 @@ const uploadProfilePicture = async (req, res) => {
 const forgotPassword = async (req, res, next) => {
   try {
     const { email } = req.body;
+    console.log("Received email:", email); // Log the email received in the request
 
     // Check if email is provided
     if (!email) {
+      console.error("Error: Email is required");
       return res.status(400).json({ status: false, message: "Email is required" });
     }
 
     const user = await User.findOne({ email });
     if (!user) {
+      console.error("Error: User not found with email:", email);
       return res.status(404).json({ status: false, message: "User not found" });
     }
 
-    //const otp = crypto.randomInt(1000, 9999).toString();
+    // Generate OTP (mocked as "0000")
     const otp = "0000";
     const hashedOtp = await bcrypt.hash(otp, 10);
     user.otp = hashedOtp;
-    user.otpExpiry = Date.now() + 10 * 60 * 1000; // 10 mins
+    user.otpExpiry = Date.now() + 10 * 60 * 1000; // 10 mins expiry
     user.isOtpVerified = false;
     await user.save();
 
     // Validate that email is a valid format before sending
     if (!/\S+@\S+\.\S+/.test(email)) {
+      console.error("Error: Invalid email format:", email);
       return res.status(400).json({ status: false, message: "Invalid email format" });
     }
 
-    // Send OTP via email
+    // Log the details before calling sendEmail
+    console.log("Sending OTP to email:", email);
     await sendEmail({
       to: email,
       subject: "Your OTP for password reset",
@@ -358,6 +363,7 @@ const forgotPassword = async (req, res, next) => {
 
     return res.json({ status: true, message: "OTP sent to email." });
   } catch (error) {
+    console.error("Error in forgotPassword function:", error);
     next(error);
   }
 };
@@ -410,7 +416,7 @@ const resetPassword = async (req, res, next) => {
     user.otpExpiry = null;
     user.isOtpVerified = false;
     await user.save();
-    return res.json({ status: false, message: "Password reset successfully." });
+    return res.json({ status: true, message: "Password reset successfully." });
   } catch (error) {
     next(error);
   }
