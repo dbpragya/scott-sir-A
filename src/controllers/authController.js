@@ -52,13 +52,13 @@ const signup = async (req, res) => {
 
     await newUser.save();
 
-await sendEmail({
-  to: newUser.email,
-  subject: "Confirm your email",
-  text: `Your OTP is: ${otp}`,
-});
+    await sendEmail({
+      to: newUser.email,
+      subject: "Confirm your email",
+      text: `Your OTP is: ${otp}`,
+    });
 
-    return res.status(201).json({
+    return res.status(200).json({
       status: true,
       message: "Please verify your email to continue.",
     });
@@ -69,6 +69,7 @@ await sendEmail({
       .json({ status: false, message: "Internal Server Error!" });
   }
 };
+
 
 const verifyOtp = async (req, res) => {
   const errors = validationResult(req);
@@ -87,16 +88,18 @@ const verifyOtp = async (req, res) => {
       return res.status(400).json({ status: false, message: "User not found" });
     }
 
-    if (user.otp !== otp) {
+    // Use bcrypt to compare the plain OTP with the hashed OTP stored in the database
+    const isMatch = await bcrypt.compare(otp, user.otp); // Compare the plain OTP with the hashed OTP
+    if (!isMatch) {
       return res.status(400).json({ status: false, message: "Incorrect OTP." });
     }
 
+    // Check if OTP has expired
     if (user.otpExpiry <= Date.now()) {
-      return res
-        .status(400)
-        .json({ status: false, message: "OTP has expired" });
+      return res.status(400).json({ status: false, message: "OTP has expired" });
     }
 
+    // Mark OTP as verified and user as verified
     user.isOtpVerified = true;
     user.isVerify = true;
     await user.save();
@@ -116,7 +119,7 @@ const verifyOtp = async (req, res) => {
         first_name: user.first_name,
         last_name: user.last_name,
         email: user.email,
-        profilePicture: `${process.env.SERVER_URL}/${user.profilePicture}`,
+        profilePicture: user.profilePicture ? [`${process.env.LIVE_URL}/${user.profilePicture}`] : [],
         isVerify: user.isVerify,
       },
     });
@@ -127,7 +130,12 @@ const verifyOtp = async (req, res) => {
     });
   }
 };
-  
+
+
+
+
+
+
 // Validation Done
 const createPassword = async (req, res) => {
   const errors = validationResult(req);
@@ -181,7 +189,6 @@ const createPassword = async (req, res) => {
   }
 };
 
-// Validation Done
 const resendOtp = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -198,20 +205,31 @@ const resendOtp = async (req, res) => {
       return res.status(404).json({ status: false, message: "User not found" });
     }
 
-    // const otp = crypto.randomInt(1000, 9999).toString();
-    const otp = "0000";
-    const hashedOtp = await bcrypt.hash(otp, 10);
-    user.otp = hashedOtp;
-    user.otpExpiry = Date.now() + 10 * 60 * 1000;
+    // Generate a new OTP (hardcoded as "0000" for testing purposes)
+    const otp = "0000"; // Hardcoded for testing
+    const hashedOtp = await bcrypt.hash(otp, 10); // Hash the OTP before saving
+    user.otp = hashedOtp; // Save the hashed OTP
+    user.otpExpiry = Date.now() + 10 * 60 * 1000; // OTP expiry time (10 minutes)
     await user.save();
 
-    await sendEmail(user.email, "Password Reset OTP", `Your OTP is: ${otp}`);
+    // Send the OTP to the user via email
+    await sendEmail({
+      to: user.email,
+      subject: "Password Reset OTP",
+      text: `Your OTP is: ${otp}`, // Send the plain OTP in the email for testing
+    });
 
-    res.status(200).json({ status: true, message: "OTP resent successfully" });
+    return res.status(200).json({ status: true, message: "OTP resent successfully" });
   } catch (error) {
-    res.status(500).json({ status: false, message: error?.message  || "Internal server error" });
+    res.status(500).json({ status: false, message: error?.message || "Internal server error" });
   }
 };
+
+
+
+
+
+
 
 // Validation Done
 const login = async (req, res) => {
@@ -231,21 +249,15 @@ const login = async (req, res) => {
       return res.status(400).json({ status: false, message: "Invalid email or password" });
     }
 
-    if (typeof user.password !== "string") {
-      return res.status(500).json({ status: false, message: "Stored password is invalid." });
-    }
-
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(400).json({ status: false, message: "Invalid password" });
-    }
-
+    // Check if the user is verified first
     if (!user.isVerify) {
       // If the user is not verified, generate OTP and send email
       const otp = "0000"; // This can be generated dynamically
-      const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
-      user.otp = otp;
-      user.otpExpiry = otpExpiry;
+      const hashedOtp = await bcrypt.hash(otp, 10); // Hash the OTP before saving
+      const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // Set expiry time
+
+      user.otp = hashedOtp;  // Save the hashed OTP
+      user.otpExpiry = otpExpiry; // Save OTP expiry time
       await user.save();
 
       // Send verification email with OTP
@@ -255,11 +267,29 @@ const login = async (req, res) => {
         text: `Your OTP is: ${otp}`,
       });
 
-      // Respond with a message about email verification
+      // Respond with a message about email verification along with user data
       return res.status(400).json({
         status: false,
         message: "Please verify your email to continue.",
+        data: {
+          _id: user._id,
+          first_name: user.first_name,
+          last_name: user.last_name,
+          email: user.email,
+          profilePicture: user.profilePicture ? [`${process.env.LIVE_URL}/${user.profilePicture}`] : '',
+          isVerify: user.isVerify,
+        }
       });
+    }
+
+    // Password check only after the user is verified
+    if (typeof user.password !== "string") {
+      return res.status(500).json({ status: false, message: "Stored password is invalid." });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ status: false, message: "Invalid password" });
     }
 
     const token = jwt.sign(
@@ -277,7 +307,7 @@ const login = async (req, res) => {
         first_name: user.first_name,
         last_name: user.last_name,
         email: user.email,
-        profilePicture: `${process.env.SERVER_URL}/${user.profilePicture}`,
+        profilePicture: user.profilePicture ? [`${process.env.LIVE_URL}/${user.profilePicture}`] : '',
         isVerify: user.isVerify,
       },
     });
@@ -286,6 +316,9 @@ const login = async (req, res) => {
     res.status(500).json({ status: false, message: "Internal Server Error!" });
   }
 };
+
+
+
 
 
 const uploadProfilePicture = async (req, res) => {
@@ -311,7 +344,7 @@ const uploadProfilePicture = async (req, res) => {
     res.status(200).json({
       status: true,
       message: "Profile picture uploaded successfully",
-      profilePicture: `${process.env.SERVER_URL}/${updatedUser.profilePicture}`,
+      profilePicture: `${process.env.LIVE_URL}/${updatedUser.profilePicture}`,
     });
   } catch (error) {
     console.error("Error uploading profile picture:", error);
@@ -351,7 +384,7 @@ const forgotPassword = async (req, res, next) => {
 
     // Log the details before calling sendEmail
     console.log("Sending OTP to email:", email);
-  
+
     // Correcting the variable to use 'user' instead of 'newUser'
     await sendEmail({
       to: user.email, // Use 'user' here instead of 'newUser'
@@ -375,11 +408,11 @@ const verifyResetPassword = async (req, res, next) => {
     if (!user || !user.otp || !user.otpExpiry) {
       return res
         .status(400)
-        .json({ status: false , message: "Invalid or expired OTP."});
+        .json({ status: false, message: "Invalid or expired OTP." });
     }
 
     if (Date.now() > user.otpExpiry) {
-      return res.status(400).json({  status: false, message: "OTP expired." });
+      return res.status(400).json({ status: false, message: "OTP expired." });
     }
 
     const isMatch = await bcrypt.compare(otp, user.otp);
@@ -400,7 +433,7 @@ const resetPassword = async (req, res, next) => {
 
     const user = await User.findOne({ email });
     if (!user || !user.isOtpVerified) {
-      return res.status(400).json({status: false, message: "OTP verification required." });
+      return res.status(400).json({ status: false, message: "OTP verification required." });
     }
 
     if (newPassword !== confirmPassword) {
