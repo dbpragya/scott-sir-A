@@ -59,20 +59,21 @@ exports.createEvent = async (req, res) => {
       dates,
       type: "Planned",
       createdBy: userId,
-      invitationCustomization: customizationData,
+      invitationCustomization: customizationData,  // This is now an object, not an array
     });
 
     await newEvent.save();
 
     await checkTopPlannerBadge(userId);
 
-    res.status(201).json({ success: true, message: "Event created successfully", event: newEvent });
+    res.status(201).json({ status: true, message: "Event created successfully", Data: newEvent });
 
   } catch (error) {
     console.error("Create Event Error:", error);
-    res.status(500).json({ success: false, message: "Server error" });
+    res.status(500).json({ status: false, message: "Server error" });
   }
 };
+
 
 exports.getAllEvents = async (req, res) => {
   try {
@@ -84,21 +85,26 @@ exports.getAllEvents = async (req, res) => {
       .populate({ path: "votes.user", select: "profilePicture" });
 
     const modifiedEvents = events.map(event => ({
+      id: event._id, // Add event ID
       name: event.name,
       location: event.location,
       description: event.description,
-      creatorProfilePicture: event.createdBy?.profilePicture || null,
+      votingTime: event.votingTime, // Assuming this is part of the event
+      dates: event.dates || '', // Ensure empty array if no dates
+      invitationCustomization: event.invitationCustomization || { premiumTheme: "Lavender" }, // Ensure empty object or default
+      creatorProfilePicture: event.createdBy?.profilePicture || '',
       voteCount: event.votes.length,
-      votersProfilePictures: event.votes.map(vote => vote.user?.profilePicture || null),
-      finalizedDate: event.finalizedDate,
+      votersProfilePictures: event.votes.length > 0 ? event.votes.map(vote => vote.user?.profilePicture || '') : '',
+      finalizedDate: event.finalizedDate || '',
     }));
 
-    res.status(200).json({ success: true, events: modifiedEvents });
+    res.status(200).json({ status: true, message: "Events Fetched successfully", Data: modifiedEvents });
   } catch (error) {
     console.error("Get Events Error:", error);
-    res.status(500).json({ success: false, message: "Failed to fetch events" });
+    res.status(500).json({ status: false, message: "Failed to fetch events" });
   }
 };
+
 
 exports.getEventById = async (req, res) => {
   try {
@@ -176,7 +182,7 @@ exports.getEventById = async (req, res) => {
       const eventDateStr = new Date(d.date).toISOString().split('T')[0];
       return {
         date: formatWeekdayDate(d.date),
-        timeSlot: d.timeSlot,
+        timeSlot: d.timeSlot || "", // Default empty string if no timeSlot
         voteCount: votesByDateMap[eventDateStr]?.count || 0,
         votersProfilePictures: votesByDateMap[eventDateStr]?.votersProfilePictures || [],
       };
@@ -184,23 +190,28 @@ exports.getEventById = async (req, res) => {
 
     const invitedUsersProfilePics = event.invitedUsers.map(u => u.profilePicture || null);
 
+    // Fetch invitationCustomization, default to "Lavender" if not present
+    const invitationCustomization = event.invitationCustomization || { premiumTheme: "Lavender" };
+
     const eventDetails = {
-      name: event.name,
-      location: event.location,
-      description: event.description,
-      theme: event.theme,
-      invitedUsersCount: event.invitedUsers.length,
-      invitedUsersProfilePics,
-      remainingVotingTime: remainingTimeText,
-      dates: datesWithVotes,
+      name: event.name || "",
+      location: event.location || "",
+      description: event.description || "",
+      invitationCustomization: invitationCustomization, 
+      invitedUsersCount: event.invitedUsers.length || 0,
+      invitedUsersProfilePics: invitedUsersProfilePics || [],
+      remainingVotingTime: remainingTimeText || "Voting ended",
+      dates: datesWithVotes || [], // Default to an empty array if no dates
     };
 
-    res.status(200).json({ success: true, event: eventDetails });
+    res.status(200).json({ status: true, message: 'Event Fetched Successfully', event: eventDetails });
   } catch (error) {
     console.error("Get Event Error:", error);
-    res.status(500).json({ success: false, message: "Server error" });
+    res.status(500).json({ status: false, message: "Server error" });
   }
 };
+
+
 
 exports.getShareLink = async (req, res) => {
   try {
