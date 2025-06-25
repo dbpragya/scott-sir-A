@@ -83,24 +83,26 @@ const verifyOtp = async (req, res) => {
       return res.status(400).json({ status: false, message: "User not found" });
     }
 
-    const isMatch = await bcrypt.compare(otp, user.otp);
-    if (!isMatch) {
-      return res.status(400).json({ status:false, message: "Incorrect OTP." });
+    if (user.otp !== otp) {
+      return res.status(400).json({ status: false, message: "Incorrect OTP." });
     }
-    user.isOtpVerified = true;
 
     if (user.otpExpiry <= Date.now()) {
       return res
         .status(400)
         .json({ status: false, message: "OTP has expired" });
     }
+
+    user.isOtpVerified = true;
     user.isVerify = true;
-    user.save();
+    await user.save();
+
     const token = jwt.sign(
       { id: user._id, email: user.email },
       process.env.JWT_SECRET,
       { expiresIn: "30d" }
     );
+
     return res.status(200).json({
       status: true,
       message: "OTP verified successfully",
@@ -121,6 +123,7 @@ const verifyOtp = async (req, res) => {
     });
   }
 };
+
 
 // Validation Done
 const createPassword = async (req, res) => {
@@ -323,9 +326,15 @@ const forgotPassword = async (req, res, next) => {
   try {
     const { email } = req.body;
 
+    // Check if email is provided
+    if (!email) {
+      return res.status(400).json({ status: false, message: "Email is required" });
+    }
+
     const user = await User.findOne({ email });
-    if (!user)
-      return res.status(404).json({ status: false , message: "User not found"});
+    if (!user) {
+      return res.status(404).json({ status: false, message: "User not found" });
+    }
 
     //const otp = crypto.randomInt(1000, 9999).toString();
     const otp = "0000";
@@ -335,6 +344,11 @@ const forgotPassword = async (req, res, next) => {
     user.isOtpVerified = false;
     await user.save();
 
+    // Validate that email is a valid format before sending
+    if (!/\S+@\S+\.\S+/.test(email)) {
+      return res.status(400).json({ status: false, message: "Invalid email format" });
+    }
+
     // Send OTP via email
     await sendEmail({
       to: email,
@@ -342,11 +356,12 @@ const forgotPassword = async (req, res, next) => {
       text: `Your OTP is ${otp}`,
     });
 
-    return res.json({  status: true, message: "OTP sent to email." });
+    return res.json({ status: true, message: "OTP sent to email." });
   } catch (error) {
     next(error);
   }
 };
+
 
 
 const verifyResetPassword = async (req, res, next) => {

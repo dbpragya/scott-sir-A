@@ -14,13 +14,13 @@ exports.createEvent = async (req, res) => {
     const userId = req.user.id;
 
     if(!name || !location || !description || !votingTime || !dates) {
-      return res.status(400).json({ status: false, message: "All fields are required" });
+      return res.status(400).json({ success: false, message: "All fields are required" });
     }
 
     const user = await User.findById(userId);
     if (!user) {
       console.error("User not found for ID:", userId);
-      return res.status(404).json({ status: false, message: "User not found" });
+      return res.status(404).json({ success: false, message: "User not found" });
     }
 
     const now = new Date();
@@ -35,7 +35,7 @@ exports.createEvent = async (req, res) => {
       if (existingEventsCount >= 1) {
         console.warn("Non-premium user tried to create more than 1 event");
         return res.status(403).json({
-          status: false,
+          success: false,
           message: "Upgrade to premium to create unlimited events"
         });
       }
@@ -66,11 +66,11 @@ exports.createEvent = async (req, res) => {
 
     await checkTopPlannerBadge(userId);
 
-    res.status(201).json({ status: true, message: "Event created successfully", event: newEvent });
+    res.status(201).json({ success: true, message: "Event created successfully", event: newEvent });
 
   } catch (error) {
     console.error("Create Event Error:", error);
-    res.status(500).json({ status: false, message: "Server error" });
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
@@ -93,10 +93,10 @@ exports.getAllEvents = async (req, res) => {
       finalizedDate: event.finalizedDate,
     }));
 
-    res.status(200).json({ status: true, events: modifiedEvents });
+    res.status(200).json({ success: true, events: modifiedEvents });
   } catch (error) {
     console.error("Get Events Error:", error);
-    res.status(500).json({ status: false, message: "Failed to fetch events" });
+    res.status(500).json({ success: false, message: "Failed to fetch events" });
   }
 };
 
@@ -108,11 +108,11 @@ exports.getEventById = async (req, res) => {
       .populate({ path: 'createdBy', select: 'first_name' });
 
     if (!event) {
-      return res.status(404).json({ status: false, message: "Event not found" });
+      return res.status(404).json({ success: false, message: "Event not found" });
     }
 
     if (!event.createdBy || event.createdBy._id.toString() !== req.user.id) {
-      return res.status(403).json({ status: false, message: "Access denied. Only event creator can view this event." });
+      return res.status(403).json({ success: false, message: "Access denied. Only event creator can view this event." });
     }
 
     const formatWeekdayDate = (dateStr) => {
@@ -195,10 +195,10 @@ exports.getEventById = async (req, res) => {
       dates: datesWithVotes,
     };
 
-    res.status(200).json({ status: true, event: eventDetails });
+    res.status(200).json({ success: true, event: eventDetails });
   } catch (error) {
     console.error("Get Event Error:", error);
-    res.status(500).json({ status: false, message: "Server error" });
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
@@ -208,7 +208,7 @@ exports.getShareLink = async (req, res) => {
 
     const event = await Event.findById(eventId);
     if (!event) {
-      return res.status(404).json({ status: false, message: "Event not found" });
+      return res.status(404).json({ success: false, message: "Event not found" });
     }
 
     const shareLink = `http://localhost:5000/api/events/invite?eventId=${eventId}`;
@@ -224,7 +224,7 @@ exports.handleInviteLink = async (req, res) => {
   const { eventId } = req.query;
 
   if (!eventId) {
-    return res.status(400).json({ status: false, message: "Missing event ID" });
+    return res.status(400).json({ success: false, message: "Missing event ID" });
   }
 
   try {
@@ -233,14 +233,14 @@ exports.handleInviteLink = async (req, res) => {
       .lean();
 
     if (!event) {
-      return res.status(404).json({ status: false, message: "Event not found" });
+      return res.status(404).json({ success: false, message: "Event not found" });
     }
 
     const token = req.headers.authorization?.split(" ")[1];
 
     if (!token) {
       return res.status(401).json({
-        status: false,
+        success: false,
         message: "Please login/signup to view the event",
         redirectTo: `/signup?redirect=/invite?eventId=${eventId}`,
       });
@@ -251,13 +251,13 @@ exports.handleInviteLink = async (req, res) => {
       decoded = jwt.verify(token, process.env.JWT_SECRET);
       req.user = decoded;
     } catch (err) {
-      return res.status(401).json({ status: false, message: "Invalid token", error: err.message });
+      return res.status(401).json({ success: false, message: "Invalid token", error: err.message });
     }
 
     const userId = req.user.id;
 
     if (event.createdBy._id.toString() === userId) {
-      return res.status(403).json({ status: false, message: "Event creator cannot access this invite link." });
+      return res.status(403).json({ success: false, message: "Event creator cannot access this invite link." });
     }
 
     if (!event.invitedUsers.some(u => u.toString() === userId)) {
@@ -278,11 +278,11 @@ exports.handleInviteLink = async (req, res) => {
         : [],
     };
 
-    res.status(200).json({ status: true, event: responseEvent });
+    res.status(200).json({ success: true, event: responseEvent });
 
   } catch (err) {
     console.error("Invite Link Error:", err);
-    res.status(500).json({ status: false, message: "Server error" });
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
@@ -297,7 +297,7 @@ exports.getInvitedEventDetailsForVoting = async (req, res) => {
       .populate({ path: 'invitedUsers', select: 'profilePicture' });
 
     if (!event) {
-      return res.status(404).json({ status: false, message: "Event not found" });
+      return res.status(404).json({ success: false, message: "Event not found" });
     }
 
     // Check if the user is invited to the event
@@ -353,10 +353,10 @@ exports.getInvitedEventDetailsForVoting = async (req, res) => {
       timeSlot: event.finalizedDate?.timeSlot || null,
     };
 
-    res.status(200).json({ status: true, event: eventDetails });
+    res.status(200).json({ success: true, event: eventDetails });
   } catch (error) {
     console.error("Get Event Details For Voting Error:", error);
-    res.status(500).json({ status: false, message: "Server error" });
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
@@ -367,14 +367,22 @@ exports.voteOnEvent = async (req, res) => {
   const { selectedDate } = req.body;
   const userId = req.user.id;
 
+  // const errors = validationResult(req);
+  // if (!errors.isEmpty()) {
+  //   return res.status(400).json({
+  //     status: false,
+  //     message: errors.array()[0].msg,
+  //   });
+  // }
+
   try {
     const event = await Event.findById(eventId);
     if (!event) {
-      return res.status(404).json({ status: false, message: "Event not found" });
+      return res.status(404).json({ success: false, message: "Event not found" });
     }
 
     if (event.createdBy.toString() === userId) {
-      return res.status(403).json({ status: false, message: "Event creator cannot vote for their own event." });
+      return res.status(403).json({ success: false, message: "Event creator cannot vote for their own event." });
     }
 
     if (!event.invitedUsers.some(user => user.toString() === userId)) {
@@ -382,17 +390,17 @@ exports.voteOnEvent = async (req, res) => {
     }
 
     if (!selectedDate) {
-      return res.status(400).json({ status: false, message: "Please select a date to vote." });
+      return res.status(400).json({ success: false, message: "Please select a date to vote." });
     }
 
     const validDateObj = event.dates.find(d => new Date(d.date).toISOString().split('T')[0] === new Date(selectedDate).toISOString().split('T')[0]);
     if (!validDateObj) {
-      return res.status(400).json({ status: false, message: "Selected date is not valid for this event." });
+      return res.status(400).json({ success: false, message: "Selected date is not valid for this event." });
     }
 
     const alreadyVoted = event.votes.some(vote => vote.user.toString() === userId);
     if (alreadyVoted) {
-      return res.status(400).json({ status: false, message: "You already voted" });
+      return res.status(400).json({ success: false, message: "You already voted" });
     }
 
     event.votes.push({ user: userId, date: new Date(selectedDate).toISOString().split('T')[0] });
@@ -413,10 +421,10 @@ exports.voteOnEvent = async (req, res) => {
 
     await checkSpeedyVoterBadge(userId);
 
-    res.status(200).json({ status: true, message: "Vote submitted", voteCount: event.votes.length, groupId: group._id });
+    res.status(200).json({ success: true, message: "Vote submitted", voteCount: event.votes.length, groupId: group._id });
   } catch (err) {
     console.error("Vote Error:", err);
-    res.status(500).json({ status: false, message: "Server error" });
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
@@ -435,7 +443,7 @@ exports.getInvitedEvents = async (req, res) => {
 
     if (events.length === 0) {
       console.log("No invited events found for user.");
-      return res.status(404).json({ status: false, message: "No invited events found for the user." });
+      return res.status(404).json({ success: false, message: "No invited events found for the user." });
     }
 
     const simplifiedEvents = events.map(event => ({
@@ -446,10 +454,10 @@ exports.getInvitedEvents = async (req, res) => {
       finalizedDate: event.finalizedDate,
     }));
 
-    res.status(200).json({ status: true, events: simplifiedEvents });
+    res.status(200).json({ success: true, events: simplifiedEvents });
   } catch (error) {
     console.error("Get Invited Events Error:", error);
-    res.status(500).json({ status: false, message: "Server error" });
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
