@@ -119,7 +119,7 @@ const verifyOtp = async (req, res) => {
         first_name: user.first_name,
         last_name: user.last_name,
         email: user.email,
-        profilePicture: user.profilePicture ? [`${process.env.LIVE_URL}/${user.profilePicture}`] : [],
+        profilePicture: user.profilePicture ? [`${process.env.LIVE_URL}/${user.profilePicture}`] : '',
         isVerify: user.isVerify,
       },
     });
@@ -268,8 +268,8 @@ const login = async (req, res) => {
       });
 
       // Respond with a message about email verification along with user data
-      return res.status(400).json({
-        status: false,
+      return res.status(200).json({
+        status: true,
         message: "Please verify your email to continue.",
         data: {
           _id: user._id,
