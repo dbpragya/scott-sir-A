@@ -52,7 +52,11 @@ const signup = async (req, res) => {
 
     await newUser.save();
 
-    await sendEmail(newUser.email, "Confirm your email", `Your OTP is: ${otp}`);
+await sendEmail({
+  to: newUser.email,
+  subject: "Confirm your email",
+  text: `Your OTP is: ${otp}`,
+});
 
     return res.status(201).json({
       status: true,
@@ -355,11 +359,13 @@ const forgotPassword = async (req, res, next) => {
 
     // Log the details before calling sendEmail
     console.log("Sending OTP to email:", email);
+  
     await sendEmail({
-      to: email,
-      subject: "Your OTP for password reset",
-      text: `Your OTP is ${otp}`,
-    });
+  to: newUser.email,
+  subject: "Confirm your email",
+  text: `Your OTP is: ${otp}`,
+});
+
 
     return res.json({ status: true, message: "OTP sent to email." });
   } catch (error) {
