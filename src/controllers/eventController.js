@@ -279,7 +279,7 @@ exports.getEventById = async (req, res) => {
       dates: datesWithVotes || [], // Default to an empty array if no dates
     };
 
-    res.status(200).json({ status: true, message: 'Event Fetched Successfully', event: eventDetails });
+    res.status(200).json({ status: true, message: 'Event Fetched Successfully', data: eventDetails });
   } catch (error) {
     console.error("Get Event Error:", error);
     res.status(500).json({ status: false, message: "Server error" });
