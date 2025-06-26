@@ -134,6 +134,17 @@ exports.getAllEvents = async (req, res) => {
         ? `${process.env.LIVE_URL}/${event.createdBy.profilePicture}`
         : "";
 
+      // Handling finalizedDate
+      const finalizedDate = event.finalizedDate
+        ? {
+            date: event.finalizedDate.date || "", // If no date, show empty string
+            timeSlot: event.finalizedDate.timeSlot || "", // If no timeSlot, show empty string
+          }
+        : {
+            date: "", // Default to empty string if no finalizedDate
+            timeSlot: "", // Default to empty string if no finalizedDate
+          };
+
       // Return the event details in the desired format
       return {
         id: event._id,  // Event ID
@@ -149,7 +160,7 @@ exports.getAllEvents = async (req, res) => {
           userId: vote.user?._id,
           profilePicture: vote.user?.profilePicture ? `${process.env.LIVE_URL}/${vote.user.profilePicture}` : ""
         })) : [],
-        finalizedDate: event.finalizedDate || '', // Default to empty object if no finalizedDate
+        finalizedDate: finalizedDate, // Use the processed finalizedDate
       };
     });
 
@@ -163,6 +174,7 @@ exports.getAllEvents = async (req, res) => {
     res.status(500).json({ status: false, message: "Failed to fetch events" });
   }
 };
+
 
 
 
@@ -566,6 +578,17 @@ exports.getInvitedEvents = async (req, res) => {
         ? `${process.env.LIVE_URL}/${event.createdBy.profilePicture}`
         : "";
 
+      // Handling finalizedDate
+      const finalizedDate = event.finalizedDate
+        ? {
+            date: event.finalizedDate.date || "", // If no date, show empty string
+            timeSlot: event.finalizedDate.timeSlot || "", // If no timeSlot, show empty string
+          }
+        : {
+            date: "", // Default to empty string if no finalizedDate
+            timeSlot: "", // Default to empty string if no finalizedDate
+          };
+
       // Return the event details in the desired format
       return {
         id: event._id,  // Event ID
@@ -580,7 +603,7 @@ exports.getInvitedEvents = async (req, res) => {
           userId: vote.user?._id,
           profilePicture: vote.user?.profilePicture ? `${process.env.LIVE_URL}/${vote.user.profilePicture}` : ""
         })) : [],
-        finalizedDate: event.finalizedDate || '',
+        finalizedDate: finalizedDate, // Use the processed finalizedDate
       };
     });
 
@@ -590,6 +613,7 @@ exports.getInvitedEvents = async (req, res) => {
     res.status(500).json({ status: false, message: "Server error" });
   }
 };
+
 
 
 
