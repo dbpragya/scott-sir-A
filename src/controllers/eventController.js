@@ -140,8 +140,7 @@ exports.getAllEvents = async (req, res) => {
         name: event.name || "",
         location: event.location || "",
         description: event.description || "",
-        votingTime: event.votingTime || "",  // Add votingTime if available
-        dates: datesWithVotes || [],  // Default empty array if no dates
+
         invitationCustomization: event.invitationCustomization || '',
         type: event.type,
         creatorProfilePicture: creatorProfilePictureUrl,  // Add live URL before profilePicture path
@@ -522,7 +521,7 @@ exports.getInvitedEvents = async (req, res) => {
       select: "first_name profilePicture",
     }).populate({
       path: "votes.user",
-      select: "profilePicture",
+      select: "profilePicture _id",
     });
 
     if (events.length === 0) {
@@ -544,7 +543,10 @@ exports.getInvitedEvents = async (req, res) => {
         }
         votesByDateMap[voteDateStr].count++;
         if (vote.user && vote.user.profilePicture) {
-          votesByDateMap[voteDateStr].votersProfilePictures.push(vote.user.profilePicture);
+          votesByDateMap[voteDateStr].votersProfilePictures.push({
+            userId: vote.user._id,
+            profilePicture: `${process.env.LIVE_URL}/${vote.user.profilePicture}`
+          });
         }
       });
 
@@ -559,19 +561,25 @@ exports.getInvitedEvents = async (req, res) => {
         };
       });
 
+      // Prepend the live URL to the creator's profile picture path
+      const creatorProfilePictureUrl = event.createdBy?.profilePicture
+        ? `${process.env.LIVE_URL}/${event.createdBy.profilePicture}`
+        : "";
+
       // Return the event details in the desired format
       return {
         id: event._id,  // Event ID
         name: event.name || "",
         location: event.location || "",
         description: event.description || "",
-        votingTime: event.votingTime || "",  // Add votingTime if available
-        dates: datesWithVotes || [],  // Default empty array if no dates
         invitationCustomization: event.invitationCustomization || '',
-        type: 'Invited'  || "",
-        creatorProfilePicture: event.createdBy?.profilePicture || "",
+        type: 'Invited' || "",
+        creatorProfilePicture: creatorProfilePictureUrl,  // Add live URL before profilePicture path
         voteCount: event.votes.length || 0,
-        votersProfilePictures: event.votes.length > 0 ? event.votes.map(vote => vote.user?.profilePicture || "") : '',
+        votersProfilePictures: event.votes.length > 0 ? event.votes.map(vote => ({
+          userId: vote.user?._id,
+          profilePicture: vote.user?.profilePicture ? `${process.env.LIVE_URL}/${vote.user.profilePicture}` : ""
+        })) : [],
         finalizedDate: event.finalizedDate || '',
       };
     });
