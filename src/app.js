@@ -10,7 +10,7 @@ connectDB();
 
 const app = express();
 app.use(express.json());
-app.use('/uploads', express.static(path.join(__dirname, '../uploads'))); 
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/events', require('./routes/eventRoutes')); 

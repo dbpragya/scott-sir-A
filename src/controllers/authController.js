@@ -122,7 +122,7 @@ const verifyOtp = async (req, res) => {
         first_name: user.first_name,
         last_name: user.last_name,
         email: user.email,
-        profilePicture: user.profilePicture ? [`${process.env.LIVE_URL}/${user.profilePicture}`] : [],
+        profilePicture: user.profilePicture ? [`${process.env.LIVE_URL}/${user.profilePicture}`] : '',
         isVerify: user.isVerify,
       },
     });
@@ -328,9 +328,7 @@ const login = async (req, res) => {
 const uploadProfilePicture = async (req, res) => {
   try {
     if (!req.file) {
-      return res
-        .status(400)
-        .json({ status: false, message: "No file uploaded" });
+      return res.status(400).json({ status: false, message: "No file uploaded" });
     }
 
     const userId = req.user.id;
@@ -345,16 +343,20 @@ const uploadProfilePicture = async (req, res) => {
       return res.status(404).json({ status: false, message: "User not found" });
     }
 
+    // Replace backslashes with forward slashes for the URL
+    const profilePictureUrl = updatedUser.profilePicture.replace(/\\/g, '/');
+
     res.status(200).json({
       status: true,
       message: "Profile picture uploaded successfully",
-      profilePicture: `${process.env.LIVE_URL}/${updatedUser.profilePicture}`,
+      profilePicture: `${process.env.LIVE_URL}/${profilePictureUrl}`,
     });
   } catch (error) {
     console.error("Error uploading profile picture:", error);
     res.status(500).json({ status: false, message: "Internal Server Error!" });
   }
 };
+
 
 const forgotPassword = async (req, res, next) => {
   try {

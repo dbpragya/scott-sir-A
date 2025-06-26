@@ -14,13 +14,13 @@ exports.createEvent = async (req, res) => {
     const userId = req.user.id;
 
     if (!name || !location || !description || !votingTime || !dates) {
-      return res.status(400).json({ success: false, message: "All fields are required" });
+      return res.status(400).json({ status: false, message: "All fields are required" });
     }
 
     const user = await User.findById(userId);
     if (!user) {
       console.error("User not found for ID:", userId);
-      return res.status(404).json({ success: false, message: "User not found" });
+      return res.status(404).json({ status: false, message: "User not found" });
     }
 
     const now = new Date();
@@ -35,7 +35,7 @@ exports.createEvent = async (req, res) => {
       if (existingEventsCount >= 1) {
         console.warn("Non-premium user tried to create more than 1 event");
         return res.status(403).json({
-          success: false,
+          status: false,
           message: "Upgrade to premium to create unlimited events"
         });
       }
@@ -88,10 +88,6 @@ exports.createEvent = async (req, res) => {
   }
 };
 
-
-
-
-
 exports.getAllEvents = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -100,11 +96,11 @@ exports.getAllEvents = async (req, res) => {
     const events = await Event.find({ type: "Planned", createdBy: userId })
       .sort({ createdAt: -1 })
       .populate({ path: "createdBy", select: "first_name profilePicture" })
-      .populate({ path: "votes.user", select: "profilePicture" });
+      .populate({ path: "votes.user", select: "profilePicture _id" });
 
     // If no events found, return an empty list
     if (events.length === 0) {
-      return res.status(404).json({ success: false, message: "No events found" });
+      return res.status(404).json({ status: false, message: "No events found" });
     }
 
     const modifiedEvents = events.map(event => {
@@ -121,7 +117,10 @@ exports.getAllEvents = async (req, res) => {
         }
         votesByDateMap[voteDateStr].count++;
         if (vote.user && vote.user.profilePicture) {
-          votesByDateMap[voteDateStr].votersProfilePictures.push(vote.user.profilePicture);
+          votesByDateMap[voteDateStr].votersProfilePictures.push({
+            userId: vote.user._id,
+            profilePicture: `${process.env.LIVE_URL}/${vote.user.profilePicture}`
+          });
         }
       });
 
@@ -136,6 +135,11 @@ exports.getAllEvents = async (req, res) => {
         };
       });
 
+      // Prepend the live URL to the creator's profile picture path
+      const creatorProfilePictureUrl = event.createdBy?.profilePicture
+        ? `${process.env.LIVE_URL}/${event.createdBy.profilePicture}`
+        : "";
+
       // Return the event details in the desired format
       return {
         id: event._id,  // Event ID
@@ -145,10 +149,14 @@ exports.getAllEvents = async (req, res) => {
         votingTime: event.votingTime || "",  // Add votingTime if available
         dates: datesWithVotes || [],  // Default empty array if no dates
         invitationCustomization: event.invitationCustomization || { premiumTheme: "Lavender", default: "" },
-        creatorProfilePicture: event.createdBy?.profilePicture || "",
+        type: event.type,
+        creatorProfilePicture: creatorProfilePictureUrl,  // Add live URL before profilePicture path
         voteCount: event.votes.length || 0,
-        votersProfilePictures: event.votes.length > 0 ? event.votes.map(vote => vote.user?.profilePicture || "") : [],
-        finalizedDate: event.finalizedDate || {}, // Default to empty object if no finalizedDate
+        votersProfilePictures: event.votes.length > 0 ? event.votes.map(vote => ({
+          userId: vote.user?._id,
+          profilePicture: vote.user?.profilePicture ? `${process.env.LIVE_URL}/${vote.user.profilePicture}` : ""
+        })) : [],
+        finalizedDate: event.finalizedDate || '', // Default to empty object if no finalizedDate
       };
     });
 
@@ -164,19 +172,20 @@ exports.getAllEvents = async (req, res) => {
 };
 
 
+
 exports.getEventById = async (req, res) => {
   try {
     const event = await Event.findById(req.params.eventId)
-      .populate({ path: 'invitedUsers', select: 'profilePicture' })
-      .populate({ path: 'votes.user', select: 'profilePicture' })
+      .populate({ path: 'invitedUsers', select: 'profilePicture _id' })
+      .populate({ path: 'votes.user', select: 'profilePicture _id' })
       .populate({ path: 'createdBy', select: 'first_name' });
 
     if (!event) {
-      return res.status(404).json({ success: false, message: "Event not found" });
+      return res.status(404).json({ status: false, message: "Event not found" });
     }
 
     if (!event.createdBy || event.createdBy._id.toString() !== req.user.id) {
-      return res.status(403).json({ success: false, message: "Access denied. Only event creator can view this event." });
+      return res.status(403).json({ status: false, message: "Access denied. Only event creator can view this event." });
     }
 
     const formatWeekdayDate = (dateStr) => {
@@ -232,7 +241,10 @@ exports.getEventById = async (req, res) => {
       }
       votesByDateMap[voteDateStr].count++;
       if (vote.user && vote.user.profilePicture) {
-        votesByDateMap[voteDateStr].votersProfilePictures.push(vote.user.profilePicture);
+        votesByDateMap[voteDateStr].votersProfilePictures.push({
+          userId: vote.user._id,
+          profilePicture: `${process.env.LIVE_URL}/${vote.user.profilePicture}`
+        });
       }
     });
 
@@ -246,7 +258,11 @@ exports.getEventById = async (req, res) => {
       };
     });
 
-    const invitedUsersProfilePics = event.invitedUsers.map(u => u.profilePicture || '');
+    // Add Live URL and userId to invited users' profile pictures
+    const invitedUsersProfilePics = event.invitedUsers.map(u => ({
+      userId: u._id,
+      profilePicture: u.profilePicture ? `${process.env.LIVE_URL}/${u.profilePicture}` : ''
+    }));
 
     // Fetch invitationCustomization, default to "Lavender" if not present
     const invitationCustomization = event.invitationCustomization || { premiumTheme: "Lavender" };
@@ -279,12 +295,12 @@ exports.getShareLink = async (req, res) => {
 
     const event = await Event.findById(eventId);
     if (!event) {
-      return res.status(404).json({ success: false, message: "Event not found" });
+      return res.status(404).json({ status: false, message: "Event not found" });
     }
 
-    const shareLink = `http://localhost:5000/api/events/invite?eventId=${eventId}`;
+    const shareLink = `https://oyster-app-g2hmu.ondigitalocean.app/api/events/invite?eventId=${eventId}`;
 
-    res.status(200).json({ status: true, link: shareLink });
+    res.status(200).json({ status: true, message: 'Link generated successfully', data: shareLink });
   } catch (error) {
     console.error("Get Share Link Error:", error);  
     res.status(500).json({ status: false, message: "Failed to generate share link" });
@@ -295,7 +311,7 @@ exports.handleInviteLink = async (req, res) => {
   const { eventId } = req.query;
 
   if (!eventId) {
-    return res.status(400).json({ success: false, message: "Missing event ID" });
+    return res.status(400).json({ status: false, message: "Missing event ID" });
   }
 
   try {
@@ -304,14 +320,14 @@ exports.handleInviteLink = async (req, res) => {
       .lean();
 
     if (!event) {
-      return res.status(404).json({ success: false, message: "Event not found" });
+      return res.status(404).json({ status: false, message: "Event not found" });
     }
 
     const token = req.headers.authorization?.split(" ")[1];
 
     if (!token) {
       return res.status(401).json({
-        success: false,
+        status: false,
         message: "Please login/signup to view the event",
         redirectTo: `/signup?redirect=/invite?eventId=${eventId}`,
       });
@@ -322,13 +338,13 @@ exports.handleInviteLink = async (req, res) => {
       decoded = jwt.verify(token, process.env.JWT_SECRET);
       req.user = decoded;
     } catch (err) {
-      return res.status(401).json({ success: false, message: "Invalid token", error: err.message });
+      return res.status(401).json({ status: false, message: "Invalid token", error: err.message });
     }
 
     const userId = req.user.id;
 
     if (event.createdBy._id.toString() === userId) {
-      return res.status(403).json({ success: false, message: "Event creator cannot access this invite link." });
+      return res.status(403).json({ status: false, message: "Event creator cannot access this invite link." });
     }
 
     if (!event.invitedUsers.some(u => u.toString() === userId)) {
@@ -349,11 +365,11 @@ exports.handleInviteLink = async (req, res) => {
         : [],
     };
 
-    res.status(200).json({ success: true, event: responseEvent });
+    res.status(200).json({ status: true, event: responseEvent });
 
   } catch (err) {
     console.error("Invite Link Error:", err);
-    res.status(500).json({ success: false, message: "Server error" });
+    res.status(500).json({ status: false, message: "Server error" });
   }
 };
 
@@ -368,7 +384,7 @@ exports.getInvitedEventDetailsForVoting = async (req, res) => {
       .populate({ path: 'invitedUsers', select: 'profilePicture' });
 
     if (!event) {
-      return res.status(404).json({ success: false, message: "Event not found" });
+      return res.status(404).json({ status: false, message: "Event not found" });
     }
 
     // Check if the user is invited to the event
@@ -558,10 +574,11 @@ exports.getInvitedEvents = async (req, res) => {
         votingTime: event.votingTime || "",  // Add votingTime if available
         dates: datesWithVotes || [],  // Default empty array if no dates
         invitationCustomization: event.invitationCustomization || { premiumTheme: "Lavender", default: "" },
+        type: 'Invited'  || "",
         creatorProfilePicture: event.createdBy?.profilePicture || "",
         voteCount: event.votes.length || 0,
-        votersProfilePictures: event.votes.length > 0 ? event.votes.map(vote => vote.user?.profilePicture || "") : [],
-        finalizedDate: event.finalizedDate || {},
+        votersProfilePictures: event.votes.length > 0 ? event.votes.map(vote => vote.user?.profilePicture || "") : '',
+        finalizedDate: event.finalizedDate || '',
       };
     });
 
