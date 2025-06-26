@@ -13,22 +13,26 @@ exports.createEvent = async (req, res) => {
     const { name, location, description, votingTime, dates, invitationCustomization } = req.body;
     const userId = req.user.id;
 
+    // Validate required fields
     if (!name || !location || !description || !votingTime || !dates) {
       return res.status(400).json({ status: false, message: "All fields are required" });
     }
 
+    // Find user
     const user = await User.findById(userId);
     if (!user) {
       console.error("User not found for ID:", userId);
       return res.status(404).json({ status: false, message: "User not found" });
     }
 
+    // Check subscription status
     const now = new Date();
     const subscription = user.subscription;
     const hasPremium = subscription &&
       subscription.status === 'active' &&
       new Date(subscription.expiryDate) > now;
 
+    // For non-premium, allow only 1 event
     if (!hasPremium) {
       const existingEventsCount = await Event.countDocuments({ createdBy: userId });
 
@@ -41,30 +45,14 @@ exports.createEvent = async (req, res) => {
       }
     }
 
-    let customizationData = {
-      premiumTheme: "",   // Default to empty for non-premium users
-      default: "Lavender",  // Default theme for non-premium users
-    };
+    // Handle theme selection
+    let selectedTheme = "Theme1"; // Default theme for all users
 
-    if (hasPremium) {
-      // Premium user can select any theme
-      if (invitationCustomization && invitationCustomization.premiumTheme) {
-        customizationData.premiumTheme = invitationCustomization.premiumTheme;
-        customizationData.default = "";  // Set default to empty if premium theme is selected
-      } else {
-        customizationData.default = "Lavender";  // Default theme for premium users
-      }
-    } else {
-      // Non-premium users can only select the default theme
-      if (invitationCustomization && invitationCustomization.default) {
-        customizationData.default = invitationCustomization.default;
-        customizationData.premiumTheme = "";  // If default is selected, set premiumTheme to empty
-      } else {
-        customizationData.default = "Lavender";  // Default value for non-premium users
-        customizationData.premiumTheme = "";  // Set premiumTheme to empty string
-      }
+    if (hasPremium && invitationCustomization?.theme) {
+      selectedTheme = invitationCustomization.theme; // Premium user can pick any theme
     }
 
+    // Create event
     const newEvent = new Event({
       name,
       location,
@@ -73,20 +61,26 @@ exports.createEvent = async (req, res) => {
       dates,
       type: "Planned",
       createdBy: userId,
-      invitationCustomization: customizationData,  // Customization based on subscription
+      invitationCustomization: { theme: selectedTheme },
     });
 
     await newEvent.save();
 
+    // Optional badge check logic
     await checkTopPlannerBadge(userId);
 
-    res.status(200).json({ status: true, message: "Event created successfully", data: newEvent });
+    return res.status(200).json({
+      status: true,
+      message: "Event created successfully",
+      data: newEvent,
+    });
 
   } catch (error) {
     console.error("Create Event Error:", error);
-    res.status(500).json({ status: false, message: "Server error" });
+    return res.status(500).json({ status: false, message: "Server error" });
   }
 };
+
 
 exports.getAllEvents = async (req, res) => {
   try {
@@ -148,7 +142,7 @@ exports.getAllEvents = async (req, res) => {
         description: event.description || "",
         votingTime: event.votingTime || "",  // Add votingTime if available
         dates: datesWithVotes || [],  // Default empty array if no dates
-        invitationCustomization: event.invitationCustomization || { premiumTheme: "Lavender", default: "" },
+        invitationCustomization: event.invitationCustomization || '',
         type: event.type,
         creatorProfilePicture: creatorProfilePictureUrl,  // Add live URL before profilePicture path
         voteCount: event.votes.length || 0,
@@ -265,7 +259,7 @@ exports.getEventById = async (req, res) => {
     }));
 
     // Fetch invitationCustomization, default to "Lavender" if not present
-    const invitationCustomization = event.invitationCustomization || { premiumTheme: "Lavender" };
+    const invitationCustomization = event.invitationCustomization || { premiumTheme: "Theme1" };
 
     const eventDetails = {
       id: event._id, // Add eventId (same as _id)
@@ -365,7 +359,7 @@ exports.handleInviteLink = async (req, res) => {
         : [],
     };
 
-    res.status(200).json({ status: true, event: responseEvent });
+    res.status(200).json({ status: true, message: 'Event Joined Successfully', data: responseEvent });
 
   } catch (err) {
     console.error("Invite Link Error:", err);
@@ -573,7 +567,7 @@ exports.getInvitedEvents = async (req, res) => {
         description: event.description || "",
         votingTime: event.votingTime || "",  // Add votingTime if available
         dates: datesWithVotes || [],  // Default empty array if no dates
-        invitationCustomization: event.invitationCustomization || { premiumTheme: "Lavender", default: "" },
+        invitationCustomization: event.invitationCustomization || '',
         type: 'Invited'  || "",
         creatorProfilePicture: event.createdBy?.profilePicture || "",
         voteCount: event.votes.length || 0,

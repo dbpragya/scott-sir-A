@@ -36,15 +36,10 @@ const eventSchema = new mongoose.Schema({
     default: "Planned",
   },
 invitationCustomization: {
-  premiumTheme: {
+  theme: {
     type: String,
-    enum: ["Lavender", "Make blue", "sku blue", "spicy red", "summer", "night light", ""],  // Allow empty string for non-premium users
-    default: "",
-  },
-  default: {
-    type: String,
-    enum: ["Lavender", "Make blue", "sku blue", "spicy red", "summer", "night light", ""],  // Allow empty string for default theme
-    default: "Lavender"
+    enum: ["Theme1", "Theme2", "Theme3", "Theme4", "Theme5", "Theme6"],
+    default: "Theme1"
   }
 },
   createdAt: {
