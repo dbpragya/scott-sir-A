@@ -280,7 +280,7 @@ const login = async (req, res) => {
           first_name: user.first_name,
           last_name: user.last_name,
           email: user.email,
-          profilePicture: user.profilePicture ? [`${process.env.LIVE_URL}/${user.profilePicture}`] : '',
+          profilePicture: user.profilePicture ? "`${process.env.LIVE_URL}/${user.profilePicture}`" : '',
           isVerify: user.isVerify,
         }
       });
@@ -311,7 +311,7 @@ const login = async (req, res) => {
         first_name: user.first_name,
         last_name: user.last_name,
         email: user.email,
-        profilePicture: user.profilePicture ? [`${process.env.LIVE_URL}/${user.profilePicture}`] : '',
+  profilePicture: user.profilePicture ? `${process.env.LIVE_URL}/${user.profilePicture}` : '',
         isVerify: user.isVerify,
       },
     });
