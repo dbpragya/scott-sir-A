@@ -595,7 +595,7 @@ exports.getInvitedEvents = async (req, res) => {
     if (events.length === 0) {
       console.log("No invited events found for user.");
       return res.status(404).json({
-        success: false,
+        status: false,
         message: "No invited events found for the user.",
       });
     }
