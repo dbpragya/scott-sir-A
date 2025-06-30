@@ -1,11 +1,13 @@
 const Event = require('../models/Event');
 const mongoose = require('mongoose');
 
+
 exports.getTopRankings = async (req, res) => {
   try {
     const limit = 7;
-    const loggedInUserId = req.user.id; 
+    const loggedInUserId = req.user.id;
 
+    // Get premium user rankings
     const premiumRankings = await Event.aggregate([
       {
         $group: {
@@ -36,8 +38,10 @@ exports.getTopRankings = async (req, res) => {
       },
     ]);
 
+    // Extract premium user IDs
     const premiumUserIds = premiumRankings.map(u => new mongoose.Types.ObjectId(u.userId));
 
+    // Get non-premium user rankings (excluding premium users)
     const nonPremiumRankings = await Event.aggregate([
       {
         $group: {
@@ -72,22 +76,32 @@ exports.getTopRankings = async (req, res) => {
       },
     ]);
 
-    const combinedRankings = [...premiumRankings, ...nonPremiumRankings];
-    const rankedWithPosition = combinedRankings.map((user, index) => ({
+    // Combine and add positions + LIVE_URL for profilePicture
+    const rankedWithPosition = [...premiumRankings, ...nonPremiumRankings].map((user, index) => ({
       position: index + 1,
       ...user,
+      profilePicture: user.profilePicture
+        ? `${process.env.LIVE_URL}/${user.profilePicture.replace(/\\/g, '/')}`
+        : '',
     }));
 
+    // Get the logged-in user's rank
     const userRanking = rankedWithPosition.find(user => user.userId.toString() === loggedInUserId);
-    const yourRanking = userRanking ? userRanking.position : [];
+    const yourRanking = userRanking ? userRanking.position : '';
 
-    return res.json({
+    return res.status(200).json({
       status: true,
+      message: 'Rankings fetched successfully',
       yourRanking: yourRanking,
       rankings: rankedWithPosition,
     });
+
   } catch (error) {
     console.error('Error in getTopRankings:', error);
-    return res.success(500).json({ status: false, message: 'Server error', error: error.message });
+    return res.status(500).json({
+      status: false,
+      message: 'Server error',
+      error: error.message,
+    });
   }
 };

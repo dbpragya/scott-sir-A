@@ -6,10 +6,10 @@ exports.getUserNotifications = async (req, res) => {
 
     const notifications = await Notification.find({ userId }).sort({ createdAt: -1 });
 
-    res.status(200).json({ success: true,  notifications });
+    res.status(200).json({ status: true, message: 'Notifications Fetched Successfully', data: notifications });
   } catch (error) {
     console.error("Get Notifications Error:", error);
-    res.status(500).json({ success: false, message: "Server error" });
+    res.status(500).json({ status: false, message: "Server error" });
   }
 };
 
