@@ -4,7 +4,7 @@ const {
   createEvent,
   getAllEvents,
   getEventById,
-  getShareLink,
+  AcceptInvite,
   handleInviteLink,
   voteOnEvent,
   getInvitedEvents,
@@ -39,7 +39,7 @@ router.get('/invite', authenticateUser, handleInviteLink);
 
 router.get("/my-invites", authenticateUser, getInvitedEvents);
 
-router.get("/:eventId/share-link", getShareLink);
+router.post("/accept-invite", authenticateUser, AcceptInvite);
 
 router.post('/:eventId/vote', authenticateUser, voteOnEventValidation, (req, res, next) => {
   const errors = validationResult(req);

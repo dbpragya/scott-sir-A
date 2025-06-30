@@ -46,10 +46,9 @@ exports.createEvent = async (req, res) => {
     }
 
     // Handle theme selection
-    let selectedTheme = "Theme1"; // Default theme for all users
-
+    let selectedTheme = "Theme1"; // Default theme
     if (hasPremium && invitationCustomization?.theme) {
-      selectedTheme = invitationCustomization.theme; // Premium user can pick any theme
+      selectedTheme = invitationCustomization.theme;
     }
 
     // Create event
@@ -69,10 +68,32 @@ exports.createEvent = async (req, res) => {
     // Optional badge check logic
     await checkTopPlannerBadge(userId);
 
+    // Format response like "planned list"
+    const responseData = {
+      id: newEvent._id,
+      name: newEvent.name,
+      location: newEvent.location,
+      description: newEvent.description,
+      invitationCustomization: newEvent.invitationCustomization,
+      type: newEvent.type,
+      creatorProfilePicture: {
+        name: user.firstName || "Updated Firstname",  // Default to "Updated Firstname" if firstName is not available
+        profilePicture: user.profilePicture
+          ? `${process.env.LIVE_URL}/${user.profilePicture.replace(/\\/g, "/")}`
+          : "",
+      },
+      voteCount: newEvent.votes ? newEvent.votes.length : 0,
+      votersProfilePictures: [],
+      finalizedDate: {
+        date: "",
+        timeSlot: "",
+      },
+    };
+
     return res.status(200).json({
       status: true,
       message: "Event created successfully",
-      data: newEvent,
+      data: responseData,
     });
 
   } catch (error) {
@@ -80,6 +101,7 @@ exports.createEvent = async (req, res) => {
     return res.status(500).json({ status: false, message: "Server error" });
   }
 };
+
 
 
 exports.getAllEvents = async (req, res) => {
@@ -130,9 +152,12 @@ exports.getAllEvents = async (req, res) => {
       });
 
       // Prepend the live URL to the creator's profile picture path
-      const creatorProfilePictureUrl = event.createdBy?.profilePicture
-        ? `${process.env.LIVE_URL}/${event.createdBy.profilePicture}`
-        : "";
+    const creatorProfilePictureUrl = {
+  name: event.createdBy?.first_name || "",
+  profilePicture: event.createdBy?.profilePicture
+    ? `${process.env.LIVE_URL}/${event.createdBy.profilePicture.replace(/\\/g, "/")}`
+    : ""
+};
 
       // Handling finalizedDate
       const finalizedDate = event.finalizedDate
@@ -294,23 +319,41 @@ exports.getEventById = async (req, res) => {
 
 
 
-exports.getShareLink = async (req, res) => {
+exports.AcceptInvite = async (req, res) => {
   try {
-    const { eventId } = req.params;
+    const { eventId } = req.body;
+    const userId = req.user.id;
+
+    if (!eventId) {
+      return res.status(400).json({ status: false, message: "Event ID is required" });
+    }
 
     const event = await Event.findById(eventId);
     if (!event) {
       return res.status(404).json({ status: false, message: "Event not found" });
     }
 
+    // Add user to invitedUsers if not already invited
+    if (!event.invitedUsers.includes(userId)) {
+      event.invitedUsers.push(userId);
+      await event.save();
+    }
+
     const shareLink = `https://oyster-app-g2hmu.ondigitalocean.app/api/events/invite?eventId=${eventId}`;
 
-    res.status(200).json({ status: true, message: 'Link generated successfully', data: shareLink });
+    res.status(200).json({
+      status: true,
+      message: "Invitation Accepted Successfully",
+        });
   } catch (error) {
-    console.error("Get Share Link Error:", error);  
-    res.status(500).json({ status: false, message: "Failed to generate share link" });
+    console.error("Get Share Link Error:", error);
+    res.status(500).json({
+      status: false,
+      message: "Failed to generate share link",
+    });
   }
 };
+
 
 exports.handleInviteLink = async (req, res) => {
   const { eventId } = req.query;
@@ -422,7 +465,10 @@ exports.getInvitedEventDetailsForVoting = async (req, res) => {
     }));
 
     // Collect profile pictures of the invited users
-    const invitedUsersProfilePics = event.invitedUsers.map(user => user.profilePicture || '');
+    const invitedUsersProfilePics = event.invitedUsers.map(user => user.profilePicture
+      ? `${process.env.LIVE_URL}/${user.profilePicture.replace(/\\/g, '/')}`
+      : ''
+    );
 
     let finalizedDate = "";
     if (event.finalizedDate && event.finalizedDate.date) {
@@ -431,26 +477,34 @@ exports.getInvitedEventDetailsForVoting = async (req, res) => {
 
     // Construct event details response
     const eventDetails = {
+      eventId: event._id,
       name: event.name,
       location: event.location,
       description: event.description,
       creator: {
         name: event.createdBy?.first_name || '',
-        profilePicture: event.createdBy?.profilePicture || '',
+        profilePicture: event.createdBy?.profilePicture
+          ? `${process.env.LIVE_URL}/${event.createdBy.profilePicture.replace(/\\/g, '/')}`
+          : '',
       },
       dates: datesWithFormattedDate,
       invitedUsersCount: event.invitedUsers.length,
       invitedUsersProfilePics,
-      finalizedDate,  
+      finalizedDate,
       timeSlot: event.finalizedDate?.timeSlot || '',
     };
 
-    res.status(200).json({ success: true, event: eventDetails });
+    res.status(200).json({
+      status: true,
+      message: 'Event Fetched Successfully',
+      data: eventDetails
+    });
   } catch (error) {
     console.error("Get Event Details For Voting Error:", error);
-    res.status(500).json({ success: false, message: "Server error" });
+    res.status(500).json({ status: false, message: "Server error" });
   }
 };
+
 
 
 // Validation Done
@@ -470,11 +524,11 @@ exports.voteOnEvent = async (req, res) => {
   try {
     const event = await Event.findById(eventId);
     if (!event) {
-      return res.status(404).json({ success: false, message: "Event not found" });
+      return res.status(404).json({ status: false, message: "Event not found" });
     }
 
     if (event.createdBy.toString() === userId) {
-      return res.status(403).json({ success: false, message: "Event creator cannot vote for their own event." });
+      return res.status(403).json({ status: false, message: "Event creator cannot vote for their own event." });
     }
 
     if (!event.invitedUsers.some(user => user.toString() === userId)) {
@@ -482,17 +536,17 @@ exports.voteOnEvent = async (req, res) => {
     }
 
     if (!selectedDate) {
-      return res.status(400).json({ success: false, message: "Please select a date to vote." });
+      return res.status(400).json({ status: false, message: "Please select a date to vote." });
     }
 
     const validDateObj = event.dates.find(d => new Date(d.date).toISOString().split('T')[0] === new Date(selectedDate).toISOString().split('T')[0]);
     if (!validDateObj) {
-      return res.status(400).json({ success: false, message: "Selected date is not valid for this event." });
+      return res.status(400).json({ status: false, message: "Selected date is not valid for this event." });
     }
 
     const alreadyVoted = event.votes.some(vote => vote.user.toString() === userId);
     if (alreadyVoted) {
-      return res.status(400).json({ success: false, message: "You already voted" });
+      return res.status(400).json({ status: false, message: "You already voted" });
     }
 
     event.votes.push({ user: userId, date: new Date(selectedDate).toISOString().split('T')[0] });
@@ -513,10 +567,10 @@ exports.voteOnEvent = async (req, res) => {
 
     await checkSpeedyVoterBadge(userId);
 
-    res.status(200).json({ success: true, message: "Vote submitted", voteCount: event.votes.length, groupId: group._id });
+    res.status(200).json({ status: true, message: "Vote submitted", voteCount: event.votes.length, groupId: group._id });
   } catch (err) {
     console.error("Vote Error:", err);
-    res.status(500).json({ success: false, message: "Server error" });
+    res.status(500).json({ status: false, message: "Server error" });
   }
 };
 
@@ -524,25 +578,30 @@ exports.getInvitedEvents = async (req, res) => {
   try {
     const userId = req.user.id;
 
-    // Find events where user is invited, but exclude those created by the user
+    // Find events where user is invited but not the creator
     const events = await Event.find({
       invitedUsers: userId,
-      createdBy: { $ne: userId },  // Exclude events created by the current user
-    }).populate({
-      path: "createdBy",
-      select: "first_name profilePicture",
-    }).populate({
-      path: "votes.user",
-      select: "profilePicture _id",
-    });
+      createdBy: { $ne: userId },
+    })
+      .populate({
+        path: "createdBy",
+        select: "first_name profilePicture",
+      })
+      .populate({
+        path: "votes.user",
+        select: "profilePicture _id",
+      });
 
     if (events.length === 0) {
       console.log("No invited events found for user.");
-      return res.status(404).json({ success: false, message: "No invited events found for the user." });
+      return res.status(404).json({
+        success: false,
+        message: "No invited events found for the user.",
+      });
     }
 
     const simplifiedEvents = events.map(event => {
-      // Format dates with votes count
+      // --- Votes by date processing ---
       const votesByDateMap = {};
       event.votes.forEach(vote => {
         if (!vote.date) return;
@@ -557,62 +616,87 @@ exports.getInvitedEvents = async (req, res) => {
         if (vote.user && vote.user.profilePicture) {
           votesByDateMap[voteDateStr].votersProfilePictures.push({
             userId: vote.user._id,
-            profilePicture: `${process.env.LIVE_URL}/${vote.user.profilePicture}`
+            profilePicture: `${process.env.LIVE_URL}/${vote.user.profilePicture.replace(/\\/g, "/")}`
           });
         }
       });
 
+      // --- Dates with vote info ---
       const datesWithVotes = event.dates.map(d => {
         const eventDateStr = new Date(d.date).toISOString().split('T')[0];
         return {
           date: d.date,
-          timeSlot: d.timeSlot || "", // Default empty string if no timeSlot
-          _id: d._id,  // Include _id for the timeSlot
+          timeSlot: d.timeSlot || "",
+          _id: d._id,
           voteCount: votesByDateMap[eventDateStr]?.count || 0,
           votersProfilePictures: votesByDateMap[eventDateStr]?.votersProfilePictures || [],
         };
       });
 
-      // Prepend the live URL to the creator's profile picture path
-      const creatorProfilePictureUrl = event.createdBy?.profilePicture
-        ? `${process.env.LIVE_URL}/${event.createdBy.profilePicture}`
+      // --- Creator details ---
+      const creator = {
+        name: event.createdBy?.first_name || "",
+        profilePicture: event.createdBy?.profilePicture
+          ? event.createdBy.profilePicture.replace(/\\/g, "/")
+          : ""
+      };
+
+      const creatorProfilePictureUrl = creator.profilePicture
+        ? `${process.env.LIVE_URL}/${creator.profilePicture}`
         : "";
 
-      // Handling finalizedDate
+      // --- Finalized date ---
       const finalizedDate = event.finalizedDate
         ? {
-            date: event.finalizedDate.date || "", // If no date, show empty string
-            timeSlot: event.finalizedDate.timeSlot || "", // If no timeSlot, show empty string
+            date: event.finalizedDate.date || "",
+            timeSlot: event.finalizedDate.timeSlot || ""
           }
         : {
-            date: "", // Default to empty string if no finalizedDate
-            timeSlot: "", // Default to empty string if no finalizedDate
+            date: "",
+            timeSlot: ""
           };
 
-      // Return the event details in the desired format
       return {
-        id: event._id,  // Event ID
+        id: event._id,
         name: event.name || "",
         location: event.location || "",
         description: event.description || "",
         invitationCustomization: event.invitationCustomization || '',
-        type: 'Invited' || "",
-        creatorProfilePicture: creatorProfilePictureUrl,  // Add live URL before profilePicture path
+        type: "Invited",
+       creatorProfilePicture: {
+  name: creator.name,
+  profilePicture: creator.profilePicture
+    ? `${process.env.LIVE_URL}/${creator.profilePicture}`
+    : ""
+},
         voteCount: event.votes.length || 0,
-        votersProfilePictures: event.votes.length > 0 ? event.votes.map(vote => ({
-          userId: vote.user?._id,
-          profilePicture: vote.user?.profilePicture ? `${process.env.LIVE_URL}/${vote.user.profilePicture}` : ""
-        })) : [],
-        finalizedDate: finalizedDate, // Use the processed finalizedDate
+        votersProfilePictures: event.votes.length > 0
+          ? event.votes.map(vote => ({
+              userId: vote.user?._id,
+              profilePicture: vote.user?.profilePicture
+                ? `${process.env.LIVE_URL}/${vote.user.profilePicture.replace(/\\/g, "/")}`
+                : ""
+            }))
+          : [],
+        finalizedDate
       };
     });
 
-    res.status(200).json({ status: true, message: 'Event Fetched Successfully', data: simplifiedEvents });
+    res.status(200).json({
+      status: true,
+      message: "Event Fetched Successfully",
+      data: simplifiedEvents
+    });
+
   } catch (error) {
     console.error("Get Invited Events Error:", error);
-    res.status(500).json({ status: false, message: "Server error" });
+    res.status(500).json({
+      status: false,
+      message: "Server error"
+    });
   }
 };
+
 
 
 
@@ -623,17 +707,26 @@ exports.getVotersByDate = async (req, res) => {
     const { selectedDate } = req.query;
 
     if (!selectedDate) {
-      return res.status(400).json({ status: false, message: "Please provide selectedDate query parameter." });
+      return res.status(400).json({
+        status: false,
+        message: "Please provide selectedDate query parameter."
+      });
     }
 
     const event = await Event.findById(eventId).populate('votes.user', 'first_name profilePicture');
 
     if (!event) {
-      return res.status(404).json({ status: false, message: "Event not found." });
+      return res.status(404).json({
+        status: false,
+        message: "Event not found."
+      });
     }
 
     if (event.createdBy.toString() !== req.user.id) {
-      return res.status(403).json({ status: false, message: "Only event creator can view voters for a date." });
+      return res.status(403).json({
+        status: false,
+        message: "Only event creator can view voters for a date."
+      });
     }
 
     const selectedDateISO = new Date(selectedDate).toISOString().split('T')[0];
@@ -644,18 +737,28 @@ exports.getVotersByDate = async (req, res) => {
     }).map(vote => ({
       userId: vote.user._id,
       name: vote.user.first_name,
-      profilePicture: vote.user.profilePicture || ''
+      profilePicture: vote.user.profilePicture
+        ? `${process.env.LIVE_URL}/${vote.user.profilePicture.replace(/\\/g, '/')}`
+        : ""
     }));
 
     res.status(200).json({
       status: true,
-      date: selectedDateISO,
-      voters: votersForDate,
-      totalVoters: votersForDate.length,
+      message: "Voters for the selected date retrieved successfully.",
+      data: {
+        eventId,
+        date: selectedDateISO,
+        voters: votersForDate,
+        totalVoters: votersForDate.length
+      }
     });
+
   } catch (error) {
     console.error("Get Voters By Date Error:", error);
-    res.status(500).json({ status: false, message: "Server error" });
+    res.status(500).json({
+      status: false,
+      message: "Server error"
+    });
   }
 };
 
@@ -712,7 +815,7 @@ exports.finalizeEventDate = async (req, res) => {
       createNotification(vote.user._id, title, message)
     ));
 
-    res.status(200).json({ status: true, message: "Date finalized successfully.", finalizedDate: event.finalizedDate });
+    res.status(200).json({ status: true, message: "Date finalized successfully.", data: event.finalizedDate });
   } catch (error) {
     console.error("Finalize Event Date Error:", error);
     res.status(500).json({ status: false, message: "Server error" });
