@@ -30,6 +30,10 @@ const eventSchema = new mongoose.Schema({
     date: Date,
     timeSlot: String
   },
+   isFinalized: {
+    type: Boolean,
+    default: false,  // Default to false, indicating the event is not finalized initially
+  },
   type: {
     type: String,
     enum: ["Planned", "Invited"],

@@ -185,7 +185,7 @@ exports.getAllEvents = async (req, res) => {
           userId: vote.user?._id,
           profilePicture: vote.user?.profilePicture ? `${process.env.LIVE_URL}/${vote.user.profilePicture}` : ""
         })) : [],
-        finalizedDate: finalizedDate, // Use the processed finalizedDate
+        finalizedDate: finalizedDate || '', // Use the processed finalizedDate
       };
     });
 
@@ -200,9 +200,6 @@ exports.getAllEvents = async (req, res) => {
   }
 };
 
-
-
-
 exports.getEventById = async (req, res) => {
   try {
     const event = await Event.findById(req.params.eventId)
@@ -213,10 +210,6 @@ exports.getEventById = async (req, res) => {
     if (!event) {
       return res.status(404).json({ status: false, message: "Event not found" });
     }
-
-    // if (!event.createdBy || event.createdBy._id.toString() !== req.user.id) {
-    //   return res.status(403).json({ status: false, message: "Access denied. Only event creator can view this event." });
-    // }
 
     const formatWeekdayDate = (dateStr) => {
       const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -297,16 +290,31 @@ exports.getEventById = async (req, res) => {
     // Fetch invitationCustomization, default to "Lavender" if not present
     const invitationCustomization = event.invitationCustomization || { premiumTheme: "Theme1" };
 
+    // Add the finalized status and data
+    const isFinalized = event.isFinalized || false;
+    const finalizedData = event.finalizedDate ? {
+      date: event.finalizedDate.date || "", // If no date, show empty string
+      timeSlot: event.finalizedDate.timeSlot || ""
+    } : {
+      date: "", 
+      timeSlot: "", 
+    };
+
+    const eventType = (event.createdBy._id.toString() === req.user.id) ? "Planned" : (event.invitedUsers.some(user => user._id.toString() === req.user.id) ? "Invited" : "Not Invited");
+
     const eventDetails = {
-      id: event._id, // Add eventId (same as _id)
+      id: event._id,
       name: event.name || "",
       location: event.location || "",
       description: event.description || "",
-      invitationCustomization: invitationCustomization, 
+      invitationCustomization: invitationCustomization,
       invitedUsersCount: event.invitedUsers.length || 0,
       invitedUsersProfilePics: invitedUsersProfilePics || [],
       remainingVotingTime: remainingTimeText || "Voting ended",
-      dates: datesWithVotes || [], // Default to an empty array if no dates
+      dates: datesWithVotes || [], 
+      isFinalized: isFinalized || '', 
+      finalizedDate: finalizedData || '', 
+      type: eventType || '',  
     };
 
     res.status(200).json({ status: true, message: 'Event Fetched Successfully', data: eventDetails });
@@ -315,7 +323,6 @@ exports.getEventById = async (req, res) => {
     res.status(500).json({ status: false, message: "Server error" });
   }
 };
-
 
 
 
@@ -768,17 +775,23 @@ exports.finalizeEventDate = async (req, res) => {
     const { eventId } = req.params;
     const { selectedDate } = req.body;
 
+    console.log(`Attempting to finalize event with ID: ${eventId} and selected date: ${selectedDate}`);
+
     if (!selectedDate) {
+      console.log("No selected date provided.");
       return res.status(400).json({ status: false, message: "Please provide the selected date to finalize." });
     }
 
     const event = await Event.findById(eventId).populate('votes.user', '_id first_name');
+    console.log("Event found:", event);
 
     if (!event) {
+      console.log("Event not found.");
       return res.status(404).json({ status: false, message: "Event not found." });
     }
 
     if (event.finalizedDate && event.finalizedDate.date) {
+      console.log("Event has already been finalized. Cannot change the date.");
       return res.status(400).json({
         status: false,
         message: "Event date has already been finalized and cannot be changed."
@@ -786,30 +799,44 @@ exports.finalizeEventDate = async (req, res) => {
     }
     
     if (event.createdBy.toString() !== req.user.id) {
+      console.log(`Access denied for user ${req.user.id}. Only the event creator can finalize the date.`);
       return res.status(403).json({ status: false, message: "Access denied. Only event creator can finalize the date." });
     }
 
     const selectedDateISO = new Date(selectedDate).toISOString().split('T')[0];
+    console.log(`Selected Date ISO format: ${selectedDateISO}`);
+
     const dateOption = event.dates.find(d => new Date(d.date).toISOString().split('T')[0] === selectedDateISO);
+    console.log(`Date option found:`, dateOption);
 
     if (!dateOption) {
+      console.log("Selected date option not found in event dates.");
       return res.status(400).json({ status: false, message: "Selected date option not found in event." });
     }
 
+    // Finalizing the event date
     event.finalizedDate = {
       date: new Date(selectedDateISO),
       timeSlot: dateOption.timeSlot,
     };
+    console.log("Finalized date set:", event.finalizedDate);
+
+    // Set the event as finalized
+    event.isFinalized = true;  // Set isFinalized to true after finalizing the date
+    console.log("Setting isFinalized to true");
 
     await event.save();
+    console.log("Event saved successfully with finalized status.");
 
     const title = "Event is Confirmed!";
     const message = `The event ${event.name} has been finalized for ${selectedDateISO}. See you there!`;
 
+    // Notify voters
     const votersForDate = event.votes.filter(vote => {
       const voteDateISO = new Date(vote.date).toISOString().split('T')[0];
       return voteDateISO === selectedDateISO;
     });
+    console.log(`Notifying ${votersForDate.length} voters for the selected date.`);
 
     await Promise.all(votersForDate.map(vote =>
       createNotification(vote.user._id, title, message)
@@ -821,4 +848,3 @@ exports.finalizeEventDate = async (req, res) => {
     res.status(500).json({ status: false, message: "Server error" });
   }
 };
-
