@@ -239,15 +239,17 @@ exports.getEventById = async (req, res) => {
           const minutesRemaining = Math.floor((remainingTimeMs % (1000 * 60 * 60)) / (1000 * 60));
 
           if (hoursRemaining > 0) {
-            remainingTimeText = `${hoursRemaining} hour${hoursRemaining > 1 ? "s" : ""} remaining`;
+            remainingTimeText = `${hoursRemaining}h`;
             if (minutesRemaining > 0) {
-              remainingTimeText += ` ${minutesRemaining} minute${minutesRemaining > 1 ? "s" : ""}`;
+              remainingTimeText += ` and ${minutesRemaining}min`;
             }
           } else if (minutesRemaining > 0) {
-            remainingTimeText = `${minutesRemaining} minute${minutesRemaining > 1 ? "s" : ""} remaining`;
+            remainingTimeText = `${minutesRemaining} min`;
           } else {
             remainingTimeText = "Less than a minute remaining";
           }
+
+          remainingTimeText += " remaining"; // Add the remaining part at the end
         }
       }
     }
@@ -312,7 +314,7 @@ exports.getEventById = async (req, res) => {
       invitedUsersProfilePics: invitedUsersProfilePics || [],
       remainingVotingTime: remainingTimeText || "Voting ended",
       dates: datesWithVotes || [], 
-      isFinalized: isFinalized || '', 
+      isFinalized: isFinalized, 
       finalizedDate: finalizedData || '', 
       type: eventType || '',  
     };
