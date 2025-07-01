@@ -214,9 +214,9 @@ exports.getEventById = async (req, res) => {
       return res.status(404).json({ status: false, message: "Event not found" });
     }
 
-    if (!event.createdBy || event.createdBy._id.toString() !== req.user.id) {
-      return res.status(403).json({ status: false, message: "Access denied. Only event creator can view this event." });
-    }
+    // if (!event.createdBy || event.createdBy._id.toString() !== req.user.id) {
+    //   return res.status(403).json({ status: false, message: "Access denied. Only event creator can view this event." });
+    // }
 
     const formatWeekdayDate = (dateStr) => {
       const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
