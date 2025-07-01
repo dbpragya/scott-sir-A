@@ -55,7 +55,7 @@ router.post('/:eventId/vote', authenticateUser, voteOnEventValidation, (req, res
 
 router.get("/", authenticateUser, getAllEvents);
 
-router.get("/:eventId", authenticateUser, getEventById);
+router.get("/details/:eventId", authenticateUser, getEventById);
 
 router.get('/:eventId/vote-info', authenticateUser, getInvitedEventDetailsForVoting);
 
