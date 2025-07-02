@@ -239,9 +239,9 @@ exports.getEventById = async (req, res) => {
           const minutesRemaining = Math.floor((remainingTimeMs % (1000 * 60 * 60)) / (1000 * 60));
 
           if (hoursRemaining > 0) {
-            remainingTimeText = `${hoursRemaining}h`;
+            remainingTimeText = `${hoursRemaining} h`;
             if (minutesRemaining > 0) {
-              remainingTimeText += ` and ${minutesRemaining}min`;
+              remainingTimeText += ` and ${minutesRemaining} min`;
             }
           } else if (minutesRemaining > 0) {
             remainingTimeText = `${minutesRemaining} min`;
