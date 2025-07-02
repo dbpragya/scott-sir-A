@@ -542,48 +542,101 @@ exports.voteOnEvent = async (req, res) => {
   const { selectedDate, voteType } = req.body;
   const userId = req.user.id;
 
+  // ✅ Helper to safely extract just YYYY-MM-DD
+  const extractDatePart = (dateInput) => {
+    if (!dateInput) return null;
+
+    if (typeof dateInput === 'string') {
+      const parts = dateInput.trim().split(' ');
+      const possibleDate = parts.length > 1 ? parts[1] : parts[0];
+      return new Date(possibleDate).toISOString().split('T')[0];
+    } else if (dateInput instanceof Date) {
+      return dateInput.toISOString().split('T')[0];
+    } else {
+      throw new Error("Invalid date input type");
+    }
+  };
+
   try {
     const event = await Event.findById(eventId);
     if (!event) {
-      return res.status(404).json({ status: false, message: "Event not found" });
+      return res.status(404).json({
+        status: false,
+        message: "Event not found",
+      });
     }
 
     if (event.createdBy.toString() === userId) {
-      return res.status(403).json({ status: false, message: "Event creator cannot vote for their own event." });
+      return res.status(403).json({
+        status: false,
+        message: "Event creator cannot vote for their own event.",
+      });
     }
 
-    if (!event.invitedUsers.some(user => user.toString() === userId)) {
-      return res.status(403).json({ status: false, message: "You are not invited to vote on this event." });
+    if (!event.invitedUsers.some((user) => user.toString() === userId)) {
+      return res.status(403).json({
+        status: false,
+        message: "You are not invited to vote on this event.",
+      });
     }
 
     if (!selectedDate) {
-      return res.status(400).json({ status: false, message: "Please select a date to vote." });
+      return res.status(400).json({
+        status: false,
+        message: "Please select a date to vote.",
+      });
     }
 
     if (!voteType || !["yes", "no"].includes(voteType.toLowerCase())) {
-      return res.status(400).json({ status: false, message: "Invalid vote type. Please use 'yes' or 'no'." });
+      return res.status(400).json({
+        status: false,
+        message: "Invalid vote type. Please use 'yes' or 'no'.",
+      });
     }
 
-    const validDateObj = event.dates.find(d => 
-      new Date(d.date).toISOString().split('T')[0] === new Date(selectedDate).toISOString().split('T')[0]
-    );
+    // ✅ Extract normalized date
+    const selectedDatePart = extractDatePart(selectedDate);
+    if (!selectedDatePart) {
+      return res.status(400).json({
+        status: false,
+        message: "Invalid selected date.",
+      });
+    }
+
+    // ✅ Find matching event date
+    const validDateObj = event.dates.find((d) => {
+      const eventDatePart = extractDatePart(d.date);
+      return eventDatePart === selectedDatePart;
+    });
+
     if (!validDateObj) {
-      return res.status(400).json({ status: false, message: "Selected date is not valid for this event." });
+      return res.status(400).json({
+        status: false,
+        message: "Selected date is not valid for this event.",
+      });
     }
 
-    const alreadyVoted = event.votes.some(vote => vote.user.toString() === userId);
+    // ✅ Check if user already voted
+    const alreadyVoted = event.votes.some(
+      (vote) => vote.user.toString() === userId
+    );
     if (alreadyVoted) {
-      return res.status(400).json({ status: false, message: "You already voted" });
+      return res.status(400).json({
+        status: false,
+        message: "You already voted",
+      });
     }
 
+    // ✅ Store vote
     event.votes.push({
       user: userId,
-      date: new Date(selectedDate).toISOString().split('T')[0],
-      voteType: voteType.toLowerCase()
+      date: selectedDatePart,
+      voteType: voteType.toLowerCase(),
     });
 
     await event.save();
 
+    // ✅ Add to group
     let group = await Group.findOne({ eventId });
     if (!group) {
       group = await Group.create({
@@ -591,7 +644,7 @@ exports.voteOnEvent = async (req, res) => {
         members: [userId],
       });
     } else {
-      if (!group.members.some(m => m.toString() === userId)) {
+      if (!group.members.some((m) => m.toString() === userId)) {
         group.members.push(userId);
         await group.save();
       }
@@ -602,12 +655,13 @@ exports.voteOnEvent = async (req, res) => {
     res.status(200).json({
       status: true,
       message: "Vote submitted",
-      // voteCount: event.votes.length,
-      // groupId: group._id
     });
   } catch (err) {
     console.error("Vote Error:", err);
-    res.status(500).json({ status: false, message: "Server error" });
+    res.status(500).json({
+      status: false,
+      message: "Server error",
+    });
   }
 };
 
