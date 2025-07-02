@@ -68,17 +68,28 @@ const voteOnEventValidation = [
   body("selectedDate")
     .notEmpty()
     .withMessage("Please select a date to vote.")
-    .isISO8601()
-    .toDate()
     .custom(value => {
-      const dateOnly = new Date(value).toISOString().split('T')[0];
-      if (new Date(value).toISOString().split('T')[1] !== "00:00:00.000Z") {
-        throw new Error("Time should not be selected, only the date.");
+      // Extract only the YYYY-MM-DD part
+      const match = value.match(/\d{4}-\d{2}-\d{2}/);
+      if (!match) {
+        throw new Error("Selected date must contain a valid YYYY-MM-DD part");
       }
+
+      const isoDate = match[0];
+      if (isNaN(Date.parse(isoDate))) {
+        throw new Error("Selected date is not valid");
+      }
+
       return true;
-    })
-    .withMessage("Selected date must be a valid ISO 8601 date without time"),
+    }),
+
+  body("voteType")
+    .notEmpty()
+    .withMessage("Vote type is required")
+    .isIn(["yes", "no", "Yes", "No", "YES", "NO"])
+    .withMessage("Vote type must be 'yes' or 'no'")
 ];
+
 
 const finalizeEventDateValidation = [
   param("eventId")
