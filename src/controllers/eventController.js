@@ -603,7 +603,7 @@ exports.voteOnEvent = async (req, res) => {
       status: true,
       message: "Vote submitted",
       // voteCount: event.votes.length,
-      groupId: group._id
+      // groupId: group._id
     });
   } catch (err) {
     console.error("Vote Error:", err);
