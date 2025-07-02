@@ -249,9 +249,14 @@ exports.getEventById = async (req, res) => {
             remainingTimeText = "Less than a minute remaining";
           }
 
-          remainingTimeText += " remaining"; // Add the remaining part at the end
+          remainingTimeText += " remaining";
         }
       }
+    }
+
+    // ✅ If finalized, override
+    if (event.isFinalized) {
+      remainingTimeText = "Voting is no longer available — the event is already final.";
     }
 
     const votesByDateMap = {};
@@ -268,7 +273,8 @@ exports.getEventById = async (req, res) => {
       if (vote.user && vote.user.profilePicture) {
         votesByDateMap[voteDateStr].votersProfilePictures.push({
           userId: vote.user._id,
-          profilePicture: `${process.env.LIVE_URL}/${vote.user.profilePicture}`
+          profilePicture: `${process.env.LIVE_URL}/${vote.user.profilePicture}`,
+          voteType: vote.voteType || "" // ✅ Include voteType here
         });
       }
     });
@@ -277,32 +283,31 @@ exports.getEventById = async (req, res) => {
       const eventDateStr = new Date(d.date).toISOString().split('T')[0];
       return {
         date: formatWeekdayDate(d.date),
-        timeSlot: d.timeSlot || "", // Default empty string if no timeSlot
+        timeSlot: d.timeSlot || "",
         voteCount: votesByDateMap[eventDateStr]?.count || 0,
         votersProfilePictures: votesByDateMap[eventDateStr]?.votersProfilePictures || [],
       };
     });
 
-    // Add Live URL and userId to invited users' profile pictures
     const invitedUsersProfilePics = event.invitedUsers.map(u => ({
       userId: u._id,
       profilePicture: u.profilePicture ? `${process.env.LIVE_URL}/${u.profilePicture}` : ''
     }));
 
-    // Fetch invitationCustomization, default to "Lavender" if not present
     const invitationCustomization = event.invitationCustomization || { premiumTheme: "Theme1" };
 
-    // Add the finalized status and data
     const isFinalized = event.isFinalized || false;
     const finalizedData = event.finalizedDate ? {
-      date: event.finalizedDate.date || "", // If no date, show empty string
+      date: event.finalizedDate.date || "",
       timeSlot: event.finalizedDate.timeSlot || ""
     } : {
-      date: "", 
-      timeSlot: "", 
+      date: "",
+      timeSlot: "",
     };
 
-    const eventType = (event.createdBy._id.toString() === req.user.id) ? "Planned" : (event.invitedUsers.some(user => user._id.toString() === req.user.id) ? "Invited" : "Not Invited");
+    const eventType = (event.createdBy._id.toString() === req.user.id)
+      ? "Planned"
+      : (event.invitedUsers.some(user => user._id.toString() === req.user.id) ? "Invited" : "Not Invited");
 
     const eventDetails = {
       id: event._id,
@@ -313,10 +318,10 @@ exports.getEventById = async (req, res) => {
       invitedUsersCount: event.invitedUsers.length || 0,
       invitedUsersProfilePics: invitedUsersProfilePics || [],
       remainingVotingTime: remainingTimeText || "Voting ended",
-      dates: datesWithVotes || [], 
-      isFinalized: isFinalized, 
-      finalizedDate: finalizedData || '', 
-      type: eventType || '',  
+      dates: datesWithVotes || [],
+      isFinalized: isFinalized,
+      finalizedDate: finalizedData || '',
+      type: eventType || '',
     };
 
     res.status(200).json({ status: true, message: 'Event Fetched Successfully', data: eventDetails });
@@ -325,6 +330,8 @@ exports.getEventById = async (req, res) => {
     res.status(500).json({ status: false, message: "Server error" });
   }
 };
+
+
 
 
 
@@ -519,16 +526,8 @@ exports.getInvitedEventDetailsForVoting = async (req, res) => {
 // Validation Done
 exports.voteOnEvent = async (req, res) => {
   const { eventId } = req.params;
-  const { selectedDate } = req.body;
+  const { selectedDate, voteType } = req.body;
   const userId = req.user.id;
-
-  // const errors = validationResult(req);
-  // if (!errors.isEmpty()) {
-  //   return res.status(400).json({
-  //     status: false,
-  //     message: errors.array()[0].msg,
-  //   });
-  // }
 
   try {
     const event = await Event.findById(eventId);
@@ -548,7 +547,13 @@ exports.voteOnEvent = async (req, res) => {
       return res.status(400).json({ status: false, message: "Please select a date to vote." });
     }
 
-    const validDateObj = event.dates.find(d => new Date(d.date).toISOString().split('T')[0] === new Date(selectedDate).toISOString().split('T')[0]);
+    if (!voteType || !["yes", "no"].includes(voteType.toLowerCase())) {
+      return res.status(400).json({ status: false, message: "Invalid vote type. Please use 'yes' or 'no'." });
+    }
+
+    const validDateObj = event.dates.find(d => 
+      new Date(d.date).toISOString().split('T')[0] === new Date(selectedDate).toISOString().split('T')[0]
+    );
     if (!validDateObj) {
       return res.status(400).json({ status: false, message: "Selected date is not valid for this event." });
     }
@@ -558,7 +563,12 @@ exports.voteOnEvent = async (req, res) => {
       return res.status(400).json({ status: false, message: "You already voted" });
     }
 
-    event.votes.push({ user: userId, date: new Date(selectedDate).toISOString().split('T')[0] });
+    event.votes.push({
+      user: userId,
+      date: new Date(selectedDate).toISOString().split('T')[0],
+      voteType: voteType.toLowerCase()
+    });
+
     await event.save();
 
     let group = await Group.findOne({ eventId });
@@ -576,12 +586,18 @@ exports.voteOnEvent = async (req, res) => {
 
     await checkSpeedyVoterBadge(userId);
 
-    res.status(200).json({ status: true, message: "Vote submitted", voteCount: event.votes.length, groupId: group._id });
+    res.status(200).json({
+      status: true,
+      message: "Vote submitted",
+      voteCount: event.votes.length,
+      groupId: group._id
+    });
   } catch (err) {
     console.error("Vote Error:", err);
     res.status(500).json({ status: false, message: "Server error" });
   }
 };
+
 
 exports.getInvitedEvents = async (req, res) => {
   try {
