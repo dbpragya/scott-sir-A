@@ -23,6 +23,7 @@ const eventSchema = new mongoose.Schema({
     {
       user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
       date: { type: Date, required: true },
+          voteType: { type: String, enum: ["yes", "no"] } 
     }
   ],
   invitedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
@@ -32,7 +33,7 @@ const eventSchema = new mongoose.Schema({
   },
    isFinalized: {
     type: Boolean,
-    default: false,  // Default to false, indicating the event is not finalized initially
+    default: false, 
   },
   type: {
     type: String,
