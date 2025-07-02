@@ -200,6 +200,7 @@ exports.getAllEvents = async (req, res) => {
   }
 };
 
+
 exports.getEventById = async (req, res) => {
   try {
     const event = await Event.findById(req.params.eventId)
@@ -259,33 +260,47 @@ exports.getEventById = async (req, res) => {
       remainingTimeText = "Voting is no longer available — the event is already final.";
     }
 
+    // ✅ Build map: votes per date
     const votesByDateMap = {};
     event.votes.forEach(vote => {
       if (!vote.date) return;
+
       const voteDateStr = new Date(vote.date).toISOString().split('T')[0];
       if (!votesByDateMap[voteDateStr]) {
         votesByDateMap[voteDateStr] = {
           count: 0,
-          votersProfilePictures: []
+          votersProfilePictures: [],
+          userVoteTypes: {} // ✅ store each user's voteType
         };
       }
+
       votesByDateMap[voteDateStr].count++;
+
       if (vote.user && vote.user.profilePicture) {
         votesByDateMap[voteDateStr].votersProfilePictures.push({
           userId: vote.user._id,
-          profilePicture: `${process.env.LIVE_URL}/${vote.user.profilePicture}`,
-          voteType: vote.voteType || "" // ✅ Include voteType here
+          profilePicture: `${process.env.LIVE_URL}/${vote.user.profilePicture}`
         });
+      }
+
+      if (vote.user) {
+        votesByDateMap[voteDateStr].userVoteTypes[vote.user._id.toString()] = vote.voteType || "";
       }
     });
 
+    // ✅ Build final dates array
     const datesWithVotes = event.dates.map(d => {
       const eventDateStr = new Date(d.date).toISOString().split('T')[0];
+      const thisDateVotes = votesByDateMap[eventDateStr] || {};
+
+      const currentUserVoteType = thisDateVotes.userVoteTypes?.[req.user.id] || "";
+
       return {
         date: formatWeekdayDate(d.date),
         timeSlot: d.timeSlot || "",
-        voteCount: votesByDateMap[eventDateStr]?.count || 0,
-        votersProfilePictures: votesByDateMap[eventDateStr]?.votersProfilePictures || [],
+        voteCount: thisDateVotes.count || 0,
+        voteType: currentUserVoteType,
+        votersProfilePictures: thisDateVotes.votersProfilePictures || [],
       };
     });
 
@@ -330,8 +345,6 @@ exports.getEventById = async (req, res) => {
     res.status(500).json({ status: false, message: "Server error" });
   }
 };
-
-
 
 
 
@@ -589,7 +602,7 @@ exports.voteOnEvent = async (req, res) => {
     res.status(200).json({
       status: true,
       message: "Vote submitted",
-      voteCount: event.votes.length,
+      // voteCount: event.votes.length,
       groupId: group._id
     });
   } catch (err) {
