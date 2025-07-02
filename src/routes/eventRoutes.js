@@ -41,7 +41,7 @@ router.get("/my-invites", authenticateUser, getInvitedEvents);
 
 router.post("/accept-invite", authenticateUser, AcceptInvite);
 
-router.post('/:eventId/vote', authenticateUser, voteOnEventValidation, (req, res, next) => {
+router.post('/vote/:eventId', authenticateUser, voteOnEventValidation, (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({
