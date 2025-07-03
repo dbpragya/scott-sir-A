@@ -57,12 +57,12 @@ router.get("/", authenticateUser, getAllEvents);
 
 router.get("/details/:eventId", authenticateUser, getEventById);
 
-router.get('/:eventId/vote-info', authenticateUser, getInvitedEventDetailsForVoting);
+router.get('/vote-info/:eventId', authenticateUser, getInvitedEventDetailsForVoting);
 
-router.get('/:eventId/voters', authenticateUser, getVotersByDate);
+router.get('/voters/:eventId', authenticateUser, getVotersByDate);
 
 router.post(
-  '/:eventId/finalize',
+  '/finalize/:eventId',
   authenticateUser,
   finalizeEventDateValidation,
   (req, res, next) => {
