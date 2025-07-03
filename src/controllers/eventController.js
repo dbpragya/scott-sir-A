@@ -839,6 +839,7 @@ exports.getVotersByDate = async (req, res) => {
       message: "Voters for the selected date retrieved successfully.",
       data: {
         eventId,
+        description: event.description, // 👈 Added this line
         date: selectedDateISO,
         voters: votersForDate,
         totalVoters: votersForDate.length
@@ -853,6 +854,7 @@ exports.getVotersByDate = async (req, res) => {
     });
   }
 };
+
 
 // Validation Done 
 exports.finalizeEventDate = async (req, res) => {
