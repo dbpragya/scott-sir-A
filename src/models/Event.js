@@ -19,19 +19,24 @@ const eventSchema = new mongoose.Schema({
       },
     }
   ],
-  votes: [
-    {
-      user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-      date: { type: Date, required: true },
-          voteType: { type: String, enum: ["yes", "no"] } 
-    }
-  ],
+ votes: [
+  {
+    user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    date: { type: Date, required: true },
+    timeSlot: { // Ensure timeSlot is part of the vote schema
+      type: String,
+      enum: ["Morning", "Afternoon", "Evening"],
+      required: true
+    },
+    voteType: { type: String, enum: ["yes", "no"] } 
+  }
+],
   invitedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   finalizedDate: {
     date: Date,
     timeSlot: String
   },
-   isFinalized: {
+  isFinalized: {
     type: Boolean,
     default: false, 
   },
@@ -40,13 +45,13 @@ const eventSchema = new mongoose.Schema({
     enum: ["Planned", "Invited"],
     default: "Planned",
   },
-invitationCustomization: {
-  theme: {
-    type: String,
-    enum: ["Theme1", "Theme2", "Theme3", "Theme4", "Theme5", "Theme6"],
-    default: "Theme1"
-  }
-},
+  invitationCustomization: {
+    theme: {
+      type: String,
+      enum: ["Theme1", "Theme2", "Theme3", "Theme4", "Theme5", "Theme6"],
+      default: "Theme1"
+    }
+  },
   createdAt: {
     type: Date,
     default: Date.now,

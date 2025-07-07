@@ -200,18 +200,22 @@ exports.getAllEvents = async (req, res) => {
   }
 };
 
-
 exports.getEventById = async (req, res) => {
   try {
+    console.log('Fetching event by ID:', req.params.eventId);
     const event = await Event.findById(req.params.eventId)
       .populate({ path: 'invitedUsers', select: 'profilePicture _id' })
       .populate({ path: 'votes.user', select: 'profilePicture _id' })
       .populate({ path: 'createdBy', select: 'first_name' });
 
     if (!event) {
+      console.error('Event not found');
       return res.status(404).json({ status: false, message: "Event not found" });
     }
 
+    console.log('Event fetched successfully:', event);
+
+    // Helper function to format the date to "Weekday YYYY-MM-DD"
     const formatWeekdayDate = (dateStr) => {
       const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
       const d = new Date(dateStr);
@@ -227,6 +231,7 @@ exports.getEventById = async (req, res) => {
     let remainingTimeMs = 0;
     let remainingTimeText = "Voting ended";
 
+    // Calculate remaining voting time if available
     if (event.votingTime && event.createdAt) {
       const match = event.votingTime.match(/^(\d+)\s*hrs?$/i);
       if (match) {
@@ -255,54 +260,79 @@ exports.getEventById = async (req, res) => {
       }
     }
 
-    // ✅ If finalized, override
+    // If the event is finalized, override the voting time
     if (event.isFinalized) {
       remainingTimeText = "Voting is no longer available — the event is already final.";
     }
 
-    // ✅ Build map: votes per date
-    const votesByDateMap = {};
-    event.votes.forEach(vote => {
-      if (!vote.date) return;
+    console.log('Remaining Voting Time:', remainingTimeText);
 
-      const voteDateStr = new Date(vote.date).toISOString().split('T')[0];
-      if (!votesByDateMap[voteDateStr]) {
-        votesByDateMap[voteDateStr] = {
+    // Build map: votes per date and time slot, counting only "yes" votes
+    const votesByDateAndTimeSlotMap = {};
+
+    event.votes.forEach(vote => {
+      console.log(`Processing vote: ${vote.user._id} - ${vote.voteType} on ${vote.date} for ${vote.timeSlot}`);
+      if (!vote.date || !vote.timeSlot) return;
+
+      const voteDateStr = new Date(vote.date).toISOString().split('T')[0]; // Format the date to YYYY-MM-DD
+      const voteTimeSlot = vote.timeSlot; // Afternoon, Evening, etc.
+
+      const voteKey = `${voteDateStr}-${voteTimeSlot}`; // Create a key based on date and time slot
+
+      if (!votesByDateAndTimeSlotMap[voteKey]) {
+        votesByDateAndTimeSlotMap[voteKey] = {
           count: 0,
           votersProfilePictures: [],
-          userVoteTypes: {} // ✅ store each user's voteType
+          userVoteTypes: {} // Store each user's voteType for the date-time slot combination
         };
       }
 
-      votesByDateMap[voteDateStr].count++;
+      if (vote.voteType === 'yes') {
+        votesByDateAndTimeSlotMap[voteKey].count++; // Increment only for "yes" votes
+      }
 
       if (vote.user && vote.user.profilePicture) {
-        votesByDateMap[voteDateStr].votersProfilePictures.push({
+        votesByDateAndTimeSlotMap[voteKey].votersProfilePictures.push({
           userId: vote.user._id,
           profilePicture: `${process.env.LIVE_URL}/${vote.user.profilePicture}`
         });
       }
 
       if (vote.user) {
-        votesByDateMap[voteDateStr].userVoteTypes[vote.user._id.toString()] = vote.voteType || "";
+        votesByDateAndTimeSlotMap[voteKey].userVoteTypes[vote.user._id.toString()] = vote.voteType || "";
       }
     });
 
-    // ✅ Build final dates array
+    console.log('Votes by Date and Time Slot Map:', votesByDateAndTimeSlotMap);
+
+    // Build final dates array with time slots (Morning, Afternoon, Evening)
     const datesWithVotes = event.dates.map(d => {
       const eventDateStr = new Date(d.date).toISOString().split('T')[0];
-      const thisDateVotes = votesByDateMap[eventDateStr] || {};
 
-      const currentUserVoteType = thisDateVotes.userVoteTypes?.[req.user.id] || "";
+      // Ensure the time slot passed during event creation is included
+      const timeSlots = [d.timeSlot]; // Only the time slot passed during event creation
+      const dateVotes = timeSlots.map(timeSlot => {
+        const voteKey = `${eventDateStr}-${timeSlot}`;
+        const thisDateVotes = votesByDateAndTimeSlotMap[voteKey] || {};
 
-      return {
-        date: formatWeekdayDate(d.date),
-        timeSlot: d.timeSlot || "",
-        voteCount: thisDateVotes.count || 0,
-        voteType: currentUserVoteType,
-        votersProfilePictures: thisDateVotes.votersProfilePictures || [],
-      };
-    });
+        // Check if the current user has voted, and return their vote type ("yes" or "no")
+        const currentUserVoteType = thisDateVotes.userVoteTypes?.[req.user.id] || ""; // Shows the current user's vote
+
+        console.log(`Current user vote for ${timeSlot} on ${eventDateStr}:`, currentUserVoteType);
+
+        return {
+          date: formatWeekdayDate(d.date),
+          timeSlot: timeSlot,
+          voteCount: thisDateVotes.count || 0, // Only count "yes" votes
+          voteType: currentUserVoteType, // Show the user's vote type (either "yes" or "no")
+          votersProfilePictures: thisDateVotes.votersProfilePictures || [],
+        };
+      });
+
+      return dateVotes;  // Return the timeSlots for each date
+    }).flat(); // Use flat() to merge the time slots array into a single array
+
+    console.log('Final Dates with Votes:', datesWithVotes);
 
     const invitedUsersProfilePics = event.invitedUsers.map(u => ({
       userId: u._id,
@@ -339,12 +369,17 @@ exports.getEventById = async (req, res) => {
       type: eventType || '',
     };
 
+    console.log('Event Details:', eventDetails);
+
     res.status(200).json({ status: true, message: 'Event Fetched Successfully', data: eventDetails });
   } catch (error) {
     console.error("Get Event Error:", error);
     res.status(500).json({ status: false, message: "Server error" });
   }
 };
+
+
+
 
 
 
@@ -534,18 +569,28 @@ exports.getInvitedEventDetailsForVoting = async (req, res) => {
   }
 };
 
-
-
 // Validation Done
 exports.voteOnEvent = async (req, res) => {
   const { eventId } = req.params;
-  const { selectedDate, voteType } = req.body;
+  const { selectedDate, voteType, selectedTimeSlot } = req.body;
   const userId = req.user.id;
 
   // ✅ Helper to safely extract just YYYY-MM-DD
   const extractDatePart = (dateInput) => {
     if (!dateInput) return null;
 
+    // If the date input is in the format "Monday 2025-06-15", we only care about the date part (2025-06-15)
+    if (typeof dateInput === 'string' && dateInput.trim().split(' ').length === 2) {
+      const parts = dateInput.trim().split(' ');  // Split the string into [dayOfWeek, date]
+      return parts[1]; // Return the date part "2025-06-15"
+    }
+
+    // If the date input is already in YYYY-MM-DD format, return it as is
+    if (typeof dateInput === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateInput)) {
+      return dateInput; // Already in the correct format
+    }
+
+    // Otherwise, handle it like a Date object or string with a time part
     if (typeof dateInput === 'string') {
       const parts = dateInput.trim().split(' ');
       const possibleDate = parts.length > 1 ? parts[1] : parts[0];
@@ -566,6 +611,7 @@ exports.voteOnEvent = async (req, res) => {
       });
     }
 
+    // Event creator cannot vote for their own event
     if (event.createdBy.toString() === userId) {
       return res.status(403).json({
         status: false,
@@ -573,6 +619,7 @@ exports.voteOnEvent = async (req, res) => {
       });
     }
 
+    // Check if the user is invited to vote on this event
     if (!event.invitedUsers.some((user) => user.toString() === userId)) {
       return res.status(403).json({
         status: false,
@@ -580,13 +627,15 @@ exports.voteOnEvent = async (req, res) => {
       });
     }
 
-    if (!selectedDate) {
+    // Ensure selected date and timeslot are provided
+    if (!selectedDate || !selectedTimeSlot) {
       return res.status(400).json({
         status: false,
-        message: "Please select a date to vote.",
+        message: "Please select a date and time slot to vote.",
       });
     }
 
+    // Validate vote type
     if (!voteType || !["yes", "no"].includes(voteType.toLowerCase())) {
       return res.status(400).json({
         status: false,
@@ -594,7 +643,7 @@ exports.voteOnEvent = async (req, res) => {
       });
     }
 
-    // ✅ Extract normalized date
+    // Extract and normalize the date part
     const selectedDatePart = extractDatePart(selectedDate);
     if (!selectedDatePart) {
       return res.status(400).json({
@@ -603,7 +652,7 @@ exports.voteOnEvent = async (req, res) => {
       });
     }
 
-    // ✅ Find matching event date
+    // Find the matching event date
     const validDateObj = event.dates.find((d) => {
       const eventDatePart = extractDatePart(d.date);
       return eventDatePart === selectedDatePart;
@@ -616,27 +665,36 @@ exports.voteOnEvent = async (req, res) => {
       });
     }
 
-    // ✅ Check if user already voted
+    // ✅ Check if the user has already voted for the same date and time slot (ignoring time part of the date)
     const alreadyVoted = event.votes.some(
-      (vote) => vote.user.toString() === userId
+      (vote) =>
+        vote.user.toString() === userId &&
+        extractDatePart(vote.date) === selectedDatePart &&  // Compare only the date part
+        vote.timeSlot === selectedTimeSlot
     );
+
     if (alreadyVoted) {
+      console.log("User has already voted for the same date and time slot.");
       return res.status(400).json({
         status: false,
-        message: "You already voted",
+        message: "You have already voted for this time slot on the selected date.",
       });
     }
 
-    // ✅ Store vote
+    // ✅ Store the vote with the date and timeslot if no duplicate vote found
     event.votes.push({
       user: userId,
       date: selectedDatePart,
       voteType: voteType.toLowerCase(),
+      timeSlot: selectedTimeSlot,
     });
 
+    // Save the event after updating the votes array
     await event.save();
 
-    // ✅ Add to group
+    console.log("Updated votes:", event.votes);
+
+    // ✅ Add user to the group if not already added
     let group = await Group.findOne({ eventId });
     if (!group) {
       group = await Group.create({
@@ -664,6 +722,11 @@ exports.voteOnEvent = async (req, res) => {
     });
   }
 };
+
+
+
+
+
 
 
 exports.getInvitedEvents = async (req, res) => {
