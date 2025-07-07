@@ -51,7 +51,7 @@ exports.updateProfile = async (req, res) => {
     });
   }
 
-  const { first_name, last_name, email } = req.body;
+  const { first_name, last_name } = req.body; // Removed email from destructuring
 
   try {
     const token = req.header('Authorization')?.replace('Bearer ', '');
@@ -67,18 +67,17 @@ exports.updateProfile = async (req, res) => {
       return res.status(400).json({ status: false, message: "User not found" });
     }
 
-    if (email && email !== user.email) {
-      const existingUser = await User.findOne({ email });
-      if (existingUser) {
-        return res.status(400).json({ status: false, message: "Email is already in use" });
-      }
-    }
-
+    // Update user profile fields
     if (first_name) user.first_name = first_name;
     if (last_name) user.last_name = last_name;
-    if (email) user.email = email;
 
+    // Save updated user profile
     await user.save();
+
+    // Format the profile picture URL and prepare the response
+    const profilePictureUrl = user.profilePicture
+      ? `${process.env.LIVE_URL}/${user.profilePicture.replace(/\\/g, '/')}`
+      : '';
 
     res.status(200).json({
       status: true,
@@ -86,7 +85,9 @@ exports.updateProfile = async (req, res) => {
       data: {
         first_name: user.first_name,
         last_name: user.last_name,
-        email: user.email,
+        email: user.email, // Include email in the response
+        profilePicture: profilePictureUrl, // Format profile picture URL
+        badges: user.badges || [] // Include badges in the response
       },
     });
   } catch (error) {
@@ -94,6 +95,7 @@ exports.updateProfile = async (req, res) => {
     res.status(500).json({ status: false, message: "Server error" });
   }
 };
+
 
 
 exports.getTotalEvents = async (req, res) => {
