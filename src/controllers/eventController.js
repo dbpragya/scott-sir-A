@@ -33,17 +33,17 @@ exports.createEvent = async (req, res) => {
       new Date(subscription.expiryDate) > now;
 
     // For non-premium, allow only 1 event
-    if (!hasPremium) {
-      const existingEventsCount = await Event.countDocuments({ createdBy: userId });
+    // if (!hasPremium) {
+    //   const existingEventsCount = await Event.countDocuments({ createdBy: userId });
 
-      if (existingEventsCount >= 1) {
-        console.warn("Non-premium user tried to create more than 1 event");
-        return res.status(403).json({
-          status: false,
-          message: "Upgrade to premium to create unlimited events"
-        });
-      }
-    }
+    //   if (existingEventsCount >= 1) {
+    //     console.warn("Non-premium user tried to create more than 1 event");
+    //     return res.status(403).json({
+    //       status: false,
+    //       message: "Upgrade to premium to create unlimited events"
+    //     });
+    //   }
+    // }
 
     // Handle theme selection
     let selectedTheme = "Theme1"; // Default theme
