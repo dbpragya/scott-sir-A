@@ -107,10 +107,10 @@ exports.getTotalEvents = async (req, res) => {
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    const events = await Event.find({ createdBy: decoded.id }).sort({ createdAt: -1 });
+    const events = await Event.find({ createdBy: decoded.id, isFinalized: true }).sort({ createdAt: -1 });
 
     if (events.length === 0) {
-      return res.status(400).json({ status: false, message: "No events found" });
+      return res.status(400).json({ status: false, message: "No finalized events found" });
     }
 
     // Grouping events by month
@@ -129,7 +129,7 @@ exports.getTotalEvents = async (req, res) => {
 
     res.status(200).json({
       status: true,
-      message: "Total events fetched successfully",
+      message: "Total finalized events fetched successfully",
       data: groupedEvents,
     });
   } catch (error) {

@@ -101,15 +101,6 @@ const finalizeEventDateValidation = [
   body("selectedDate")
     .notEmpty()
     .withMessage("Please provide the selected date to finalize.")
-    .isISO8601()
-    .toDate()
-    .withMessage("Selected date must be a valid ISO 8601 date")
-    .custom(value => {
-      if (new Date(value).toISOString().split('T')[1] !== "00:00:00.000Z") {
-        throw new Error("Time should not be selected, only the date.");
-      }
-      return true;
-    }),
 ];
 
 const signupValidationRules = [

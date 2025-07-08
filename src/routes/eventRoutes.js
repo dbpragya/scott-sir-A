@@ -62,19 +62,6 @@ router.get('/vote-info/:eventId', authenticateUser, getInvitedEventDetailsForVot
 router.get('/voters/:eventId', authenticateUser, getVotersByDate);
 
 router.post(
-  '/finalize/:eventId',
-  authenticateUser,
-  finalizeEventDateValidation,
-  (req, res, next) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        status: false,
-        message: errors.array()[0].msg,
-      });
-    }
-    next();
-  },
-  finalizeEventDate
+  '/finalize/:eventId', authenticateUser, finalizeEventDate
 );
 module.exports = router;
