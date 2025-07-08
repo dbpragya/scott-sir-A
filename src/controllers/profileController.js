@@ -101,7 +101,6 @@ exports.updateProfile = async (req, res) => {
 exports.getTotalEvents = async (req, res) => {
   try {
     const token = req.header('Authorization')?.replace('Bearer ', '');
-
     if (!token) {
       return res.status(401).json({ status: false, message: "No token, access denied" });
     }
@@ -114,18 +113,24 @@ exports.getTotalEvents = async (req, res) => {
       return res.status(400).json({ status: false, message: "No events found" });
     }
 
+    // Grouping events by month
+    const groupedEvents = events.reduce((acc, event) => {
+      const month = new Date(event.dates[0].date).toLocaleString('default', { month: 'long', year: 'numeric' });
+      if (!acc[month]) acc[month] = [];
+      acc[month].push({
+        eventId: event._id,
+        name: event.name,
+        date: event.dates[0]?.date ? new Date(event.dates[0].date).toLocaleDateString() : '',
+        timeSlot: event.dates[0]?.timeSlot || '',
+        totalVoted: event.votes ? event.votes.length : 0,
+      });
+      return acc;
+    }, {});
+
     res.status(200).json({
       status: true,
       message: "Total events fetched successfully",
-      data: events.map(event => ({
-        eventId: event._id,
-        name: event.name,
-        date: event.dates[0]?.date
-          ? new Date(event.dates[0].date).toLocaleDateString()
-          : '',
-        timeSlot: event.dates[0]?.timeSlot || '',
-        totalVoted: event.votes ? event.votes.length : 0,
-      })),
+      data: groupedEvents,
     });
   } catch (error) {
     console.error("Get Events Error:", error);
