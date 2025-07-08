@@ -112,7 +112,7 @@ exports.getAllEvents = async (req, res) => {
     const events = await Event.find({ type: "Planned", createdBy: userId })
       .sort({ createdAt: -1 })
       .populate({ path: "createdBy", select: "first_name profilePicture" })
-      .populate({ path: "votes.user", select: "profilePicture _id" });
+      .populate({ path: "votes.user", select: "profilePicture _id voteType" });
 
     // If no events found, return an empty list
     if (events.length === 0) {
@@ -122,16 +122,22 @@ exports.getAllEvents = async (req, res) => {
     const modifiedEvents = events.map(event => {
       // Format dates with votes count
       const votesByDateMap = {};
+      
       event.votes.forEach(vote => {
-        if (!vote.date) return;
+        if (!vote.date || vote.voteType !== 'yes') return; // Only count "yes" votes
+        
         const voteDateStr = new Date(vote.date).toISOString().split('T')[0];
+        
         if (!votesByDateMap[voteDateStr]) {
           votesByDateMap[voteDateStr] = {
             count: 0,
             votersProfilePictures: []
           };
         }
-        votesByDateMap[voteDateStr].count++;
+        
+        votesByDateMap[voteDateStr].count++; // Increment only for "yes" votes
+        
+        // Add profile picture of users who voted "yes"
         if (vote.user && vote.user.profilePicture) {
           votesByDateMap[voteDateStr].votersProfilePictures.push({
             userId: vote.user._id,
@@ -140,11 +146,13 @@ exports.getAllEvents = async (req, res) => {
         }
       });
 
+      // Build the final array of dates with vote count and profiles
       const datesWithVotes = event.dates.map(d => {
         const eventDateStr = new Date(d.date).toISOString().split('T')[0];
+        
         return {
           date: d.date,
-          timeSlot: d.timeSlot || "", // Default empty string if no timeSlot
+          timeSlot: d.timeSlot || "",  // Default empty string if no timeSlot
           _id: d._id,  // Include _id for the timeSlot
           voteCount: votesByDateMap[eventDateStr]?.count || 0,
           votersProfilePictures: votesByDateMap[eventDateStr]?.votersProfilePictures || [],
@@ -152,12 +160,12 @@ exports.getAllEvents = async (req, res) => {
       });
 
       // Prepend the live URL to the creator's profile picture path
-    const creatorProfilePictureUrl = {
-  name: event.createdBy?.first_name || "",
-  profilePicture: event.createdBy?.profilePicture
-    ? `${process.env.LIVE_URL}/${event.createdBy.profilePicture.replace(/\\/g, "/")}`
-    : ""
-};
+      const creatorProfilePictureUrl = {
+        name: event.createdBy?.first_name || "",
+        profilePicture: event.createdBy?.profilePicture
+          ? `${process.env.LIVE_URL}/${event.createdBy.profilePicture.replace(/\\/g, "/")}`
+          : ""
+      };
 
       // Handling finalizedDate
       const finalizedDate = event.finalizedDate
@@ -176,15 +184,16 @@ exports.getAllEvents = async (req, res) => {
         name: event.name || "",
         location: event.location || "",
         description: event.description || "",
-
         invitationCustomization: event.invitationCustomization || '',
         type: event.type,
         creatorProfilePicture: creatorProfilePictureUrl,  // Add live URL before profilePicture path
-        voteCount: event.votes.length || 0,
-        votersProfilePictures: event.votes.length > 0 ? event.votes.map(vote => ({
-          userId: vote.user?._id,
-          profilePicture: vote.user?.profilePicture ? `${process.env.LIVE_URL}/${vote.user.profilePicture}` : ""
-        })) : [],
+        voteCount: event.votes.filter(vote => vote.voteType === 'yes').length, // Only count "yes" votes
+        votersProfilePictures: event.votes
+          .filter(vote => vote.voteType === 'yes') // Filter "yes" votes
+          .map(vote => ({
+            userId: vote.user?._id,
+            profilePicture: vote.user?.profilePicture ? `${process.env.LIVE_URL}/${vote.user.profilePicture}` : ""
+          })),
         finalizedDate: finalizedDate || '', // Use the processed finalizedDate
       };
     });
@@ -199,6 +208,7 @@ exports.getAllEvents = async (req, res) => {
     res.status(500).json({ status: false, message: "Failed to fetch events" });
   }
 };
+
 
 exports.getEventById = async (req, res) => {
   try {
@@ -291,7 +301,7 @@ exports.getEventById = async (req, res) => {
         votesByDateAndTimeSlotMap[voteKey].count++; // Increment only for "yes" votes
       }
 
-      if (vote.user && vote.user.profilePicture) {
+      if (vote.user && vote.voteType === 'yes' && vote.user.profilePicture) {
         votesByDateAndTimeSlotMap[voteKey].votersProfilePictures.push({
           userId: vote.user._id,
           profilePicture: `${process.env.LIVE_URL}/${vote.user.profilePicture}`
@@ -377,6 +387,7 @@ exports.getEventById = async (req, res) => {
     res.status(500).json({ status: false, message: "Server error" });
   }
 };
+
 
 
 
@@ -868,7 +879,7 @@ exports.getVotersByDate = async (req, res) => {
       });
     }
 
-    const event = await Event.findById(eventId).populate('votes.user', 'first_name profilePicture');
+    const event = await Event.findById(eventId).populate('votes.user', 'first_name profilePicture voteType');
 
     if (!event) {
       return res.status(404).json({
@@ -886,9 +897,10 @@ exports.getVotersByDate = async (req, res) => {
 
     const selectedDateISO = new Date(selectedDate).toISOString().split('T')[0];
 
+    // Filter votes based on the selected date and voteType being "yes"
     const votersForDate = event.votes.filter(vote => {
       const voteDateISO = new Date(vote.date).toISOString().split('T')[0];
-      return voteDateISO === selectedDateISO;
+      return voteDateISO === selectedDateISO && vote.voteType === 'yes'; // Only include "yes" votes
     }).map(vote => ({
       userId: vote.user._id,
       name: vote.user.first_name,
@@ -905,7 +917,7 @@ exports.getVotersByDate = async (req, res) => {
         description: event.description, // 👈 Added this line
         date: selectedDateISO,
         voters: votersForDate,
-        totalVoters: votersForDate.length
+        totalVoters: votersForDate.length // Count only users who voted "yes"
       }
     });
 
@@ -923,17 +935,30 @@ exports.getVotersByDate = async (req, res) => {
 exports.finalizeEventDate = async (req, res) => {
   try {
     const { eventId } = req.params;
-    const { selectedDate } = req.body;
+    const { selectedDate, selectedTimeSlot } = req.body; // Get both selectedDate and selectedTimeSlot
 
-    console.log(`Attempting to finalize event with ID: ${eventId} and selected date: ${selectedDate}`);
 
-    if (!selectedDate) {
-      console.log("No selected date provided.");
-      return res.status(400).json({ status: false, message: "Please provide the selected date to finalize." });
+    if (!selectedDate || !selectedTimeSlot) {
+      console.log("No selected date or time slot provided.");
+      return res.status(400).json({
+        status: false,
+        message: "Please provide both selected date and time slot to finalize."
+      });
     }
 
+    // Check if selectedDate is in valid date format (ISO 8601)
+    // const dateRegex = /^\w+\s\d{4}-\d{2}-\d{2}$/;  // Match the format "Monday 2025-06-15"
+    // if (!dateRegex.test(selectedDate)) {
+    //   return res.status(400).json({
+    //     status: false,
+    //     message: "Selected date must be a valid ISO 8601 date."
+    //   });
+    // }
+
+    // Convert the selectedDate to ISO format
+    const selectedDateISO = new Date(selectedDate.split(' ')[1]).toISOString().split('T')[0];
+
     const event = await Event.findById(eventId).populate('votes.user', '_id first_name');
-    console.log("Event found:", event);
 
     if (!event) {
       console.log("Event not found.");
@@ -947,52 +972,51 @@ exports.finalizeEventDate = async (req, res) => {
         message: "Event date has already been finalized and cannot be changed."
       });
     }
-    
+
     if (event.createdBy.toString() !== req.user.id) {
-      console.log(`Access denied for user ${req.user.id}. Only the event creator can finalize the date.`);
       return res.status(403).json({ status: false, message: "Access denied. Only event creator can finalize the date." });
     }
 
-    const selectedDateISO = new Date(selectedDate).toISOString().split('T')[0];
-    console.log(`Selected Date ISO format: ${selectedDateISO}`);
-
-    const dateOption = event.dates.find(d => new Date(d.date).toISOString().split('T')[0] === selectedDateISO);
-    console.log(`Date option found:`, dateOption);
+    const dateOption = event.dates.find(d => new Date(d.date).toISOString().split('T')[0] === selectedDateISO && d.timeSlot === selectedTimeSlot);
 
     if (!dateOption) {
-      console.log("Selected date option not found in event dates.");
-      return res.status(400).json({ status: false, message: "Selected date option not found in event." });
+      console.log("Selected date and time slot option not found in event dates.");
+      return res.status(400).json({
+        status: false,
+        message: "Selected date and time slot option not found in event."
+      });
     }
 
-    // Finalizing the event date
+    // Finalizing the event date and time slot
     event.finalizedDate = {
       date: new Date(selectedDateISO),
-      timeSlot: dateOption.timeSlot,
+      timeSlot: selectedTimeSlot, // Store the selected time slot
     };
-    console.log("Finalized date set:", event.finalizedDate);
 
     // Set the event as finalized
     event.isFinalized = true;  // Set isFinalized to true after finalizing the date
-    console.log("Setting isFinalized to true");
 
     await event.save();
     console.log("Event saved successfully with finalized status.");
 
     const title = "Event is Confirmed!";
-    const message = `The event ${event.name} has been finalized for ${selectedDateISO}. See you there!`;
+    const message = `The event ${event.name} has been finalized for ${selectedDateISO} at ${selectedTimeSlot}. See you there!`;
 
     // Notify voters
     const votersForDate = event.votes.filter(vote => {
       const voteDateISO = new Date(vote.date).toISOString().split('T')[0];
       return voteDateISO === selectedDateISO;
     });
-    console.log(`Notifying ${votersForDate.length} voters for the selected date.`);
 
     await Promise.all(votersForDate.map(vote =>
       createNotification(vote.user._id, title, message)
     ));
 
-    res.status(200).json({ status: true, message: "Date finalized successfully.", data: event.finalizedDate });
+    res.status(200).json({
+      status: true,
+      message: "Date and time slot finalized successfully.",
+      data: event.finalizedDate
+    });
   } catch (error) {
     console.error("Finalize Event Date Error:", error);
     res.status(500).json({ status: false, message: "Server error" });
