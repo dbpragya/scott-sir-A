@@ -19,8 +19,9 @@ const signup = async (req, res) => {
   }
 
   try {
-    const { first_name, last_name, email, password, confirmPassword } =
-      req.body;
+    const { first_name, last_name, email, password, confirmPassword, deviceToken } = req.body;
+
+    console.log("Received data:", { first_name, last_name, email, password, confirmPassword, deviceToken }); // Log received data
 
     if (password !== confirmPassword) {
       return res.status(400).json({
@@ -36,12 +37,24 @@ const signup = async (req, res) => {
         message: "User already exists with this email.",
       });
     }
+    
     const hashedPassword = await bcrypt.hash(password, 10);
 
     // OTP generation for testing purposes, will use a static value "0000"
     const otp = "0000";
     const hashedOtp = await bcrypt.hash(otp, 10); // Hash the OTP before saving it
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // Set expiry time
+
+    // Log before saving the new user
+    console.log("Creating new user with the following data:", {
+      first_name,
+      last_name,
+      email,
+      otp: hashedOtp,
+      otpExpiry,
+      password: hashedPassword,
+      deviceTokens: [deviceToken] // Log the deviceToken being saved
+    });
 
     const newUser = new User({
       first_name,
@@ -50,9 +63,16 @@ const signup = async (req, res) => {
       otp: hashedOtp, // Save the hashed OTP
       otpExpiry,
       password: hashedPassword,
+      deviceTokens: [deviceToken], // Ensure the deviceTokens is saved as an array
     });
 
+    // Log the newUser object to verify if deviceTokens is being set correctly
+    console.log("New user before saving:", newUser);
+
     await newUser.save();
+
+    // Log after user is saved
+    console.log("User saved successfully.");
 
     await sendEmail({
       to: newUser.email,
@@ -71,6 +91,7 @@ const signup = async (req, res) => {
       .json({ status: false, message: "Internal Server Error!" });
   }
 };
+
 
 
 
@@ -245,7 +266,7 @@ const login = async (req, res) => {
     });
   }
 
-  const { email, password } = req.body;
+  const { email, password, deviceToken } = req.body; // Accept deviceToken in request body
 
   try {
     const user = await User.findOne({ email });
@@ -280,7 +301,7 @@ const login = async (req, res) => {
           first_name: user.first_name,
           last_name: user.last_name,
           email: user.email,
-          profilePicture: user.profilePicture ? "`${process.env.LIVE_URL}/${user.profilePicture}`" : '',
+          profilePicture: user.profilePicture ? `${process.env.LIVE_URL}/${user.profilePicture}` : '',
           isVerify: user.isVerify,
         }
       });
@@ -294,6 +315,20 @@ const login = async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(400).json({ status: false, message: "Invalid password" });
+    }
+
+    // Ensure deviceTokens is initialized as an array if it is undefined
+    if (!user.deviceTokens) {
+      user.deviceTokens = [];
+    }
+
+    // If deviceToken is provided, save it in the deviceTokens array
+    if (deviceToken) {
+      // Check if deviceToken already exists in the array to avoid duplicates
+      if (!user.deviceTokens.includes(deviceToken)) {
+        user.deviceTokens.push(deviceToken);
+        await user.save();
+      }
     }
 
     const token = jwt.sign(
@@ -311,7 +346,7 @@ const login = async (req, res) => {
         first_name: user.first_name,
         last_name: user.last_name,
         email: user.email,
-  profilePicture: user.profilePicture ? `${process.env.LIVE_URL}/${user.profilePicture}` : '',
+        profilePicture: user.profilePicture ? `${process.env.LIVE_URL}/${user.profilePicture}` : '',
         isVerify: user.isVerify,
       },
     });
