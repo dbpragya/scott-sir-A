@@ -114,24 +114,27 @@ exports.getTotalEvents = async (req, res) => {
     }
 
     // Grouping events by month
-    const groupedEvents = events.reduce((acc, event) => {
-      const month = new Date(event.dates[0].date).toLocaleString('default', { month: 'long', year: 'numeric' });
-      if (!acc[month]) acc[month] = [];
-      acc[month].push({
-        eventId: event._id,
-        name: event.name,
-        date: event.dates[0]?.date ? new Date(event.dates[0].date).toLocaleDateString() : '',
-        timeSlot: event.dates[0]?.timeSlot || '',
-        totalVoted: event.votes ? event.votes.length : 0,
-      });
-      return acc;
-    }, {});
-
-    res.status(200).json({
-      status: true,
-      message: "Total finalized events fetched successfully",
-      data: groupedEvents,
-    });
+  const groupedEvents = events.reduce((acc, event) => {
+  const month = new Date(event.dates[0].date).toLocaleString('default', { month: 'long', year: 'numeric' });
+  if (!acc[month]) acc[month] = [];
+  acc[month].push({
+    eventId: event._id,
+    name: event.name,
+    date: event.dates[0]?.date ? new Date(event.dates[0].date).toLocaleDateString() : '',
+    timeSlot: event.dates[0]?.timeSlot || '',
+    totalVoted: event.votes ? event.votes.length : 0,
+  });
+  return acc;
+}, {});
+const formattedGroupedEvents = Object.keys(groupedEvents).map(month => ({
+  month: month,
+  events: groupedEvents[month],
+}));
+res.status(200).json({
+  status: true,
+  message: "Total finalized events fetched successfully",
+  data: formattedGroupedEvents, // This will output an array of objects, each for a month
+});
   } catch (error) {
     console.error("Get Events Error:", error);
     res.status(500).json({ status: false, message: "Server error" });
@@ -178,14 +181,46 @@ exports.changePassword = async (req, res) => {
 };
 
 
-exports.logout = (req, res) => {
+exports.logout = async (req, res) => {
   try {
-    return res.status(200).json({ status: true, message: 'Logged out successfully.' });
+    const { deviceToken } = req.body;  
+
+    if (!deviceToken) {
+      return res.status(400).json({
+        status: false,
+        message: "Please provide deviceToken to log out."
+      });
+    }
+
+    // Find the user by the deviceToken in the deviceTokens array
+    const user = await User.findOne({ deviceTokens: deviceToken });
+
+    if (!user) {
+      return res.status(400).json({
+        status: false,
+        message: "User not found with the provided deviceToken."
+      });
+    }
+
+    // Remove the deviceToken from the deviceTokens array
+    user.deviceTokens = user.deviceTokens.filter(token => token !== deviceToken);
+
+    // Save the updated user document
+    await user.save();
+
+    return res.status(200).json({
+      status: true,
+      message: "Logged out successfully and deviceToken removed."
+    });
   } catch (error) {
     console.error(error);
-    return res.status(500).json({ status: false, message: 'Server error, please try again later.' });
+    return res.status(500).json({
+      status: false,
+      message: "Server error, please try again later."
+    });
   }
 };
+
 
 // Validation Done
 exports.updateAllNotifications = async (req, res) => {
@@ -325,3 +360,8 @@ exports.purchasePlan = async (req, res) => {
     return res.status(500).json({ status: false, message: 'Server error' });
   }
 };
+
+
+
+
+
