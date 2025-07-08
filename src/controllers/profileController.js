@@ -97,7 +97,6 @@ exports.updateProfile = async (req, res) => {
 };
 
 
-
 exports.getTotalEvents = async (req, res) => {
   try {
     const token = req.header('Authorization')?.replace('Bearer ', '');
@@ -113,33 +112,42 @@ exports.getTotalEvents = async (req, res) => {
       return res.status(400).json({ status: false, message: "No finalized events found" });
     }
 
-    // Grouping events by month
-  const groupedEvents = events.reduce((acc, event) => {
-  const month = new Date(event.dates[0].date).toLocaleString('default', { month: 'long', year: 'numeric' });
-  if (!acc[month]) acc[month] = [];
-  acc[month].push({
-    eventId: event._id,
-    name: event.name,
-    date: event.dates[0]?.date ? new Date(event.dates[0].date).toLocaleDateString() : '',
-    timeSlot: event.dates[0]?.timeSlot || '',
-    totalVoted: event.votes ? event.votes.length : 0,
-  });
-  return acc;
-}, {});
-const formattedGroupedEvents = Object.keys(groupedEvents).map(month => ({
-  month: month,
-  events: groupedEvents[month],
-}));
-res.status(200).json({
-  status: true,
-  message: "Total finalized events fetched successfully",
-  data: formattedGroupedEvents, // This will output an array of objects, each for a month
-});
+    // Grouping events by month and including invitationCustomization
+    const groupedEvents = events.reduce((acc, event) => {
+      const month = new Date(event.dates[0].date).toLocaleString('default', { month: 'long', year: 'numeric' });
+      
+      // Ensure invitationCustomization exists
+      const invitationCustomization = event.invitationCustomization;  // Default to "Theme1" if not provided
+
+      if (!acc[month]) acc[month] = [];
+      acc[month].push({
+        eventId: event._id || '',
+        name: event.name || '',
+        date: event.dates[0]?.date ? new Date(event.dates[0].date).toLocaleDateString() : '',
+        timeSlot: event.dates[0]?.timeSlot || '',
+        totalVoted: event.votes ? event.votes.length : 0,
+        invitationCustomization: invitationCustomization || '',  // Add invitationCustomization to the event
+      });
+      return acc;
+    }, {});
+
+    // Convert the grouped events into an array format
+    const formattedGroupedEvents = Object.keys(groupedEvents).map(month => ({
+      month: month,
+      events: groupedEvents[month],
+    }));
+
+    res.status(200).json({
+      status: true,
+      message: "Total finalized events fetched successfully",
+      data: formattedGroupedEvents, // Return the data in the desired format
+    });
   } catch (error) {
     console.error("Get Events Error:", error);
     res.status(500).json({ status: false, message: "Server error" });
   }
 };
+
 
 // Validation Done
 exports.changePassword = async (req, res) => {
