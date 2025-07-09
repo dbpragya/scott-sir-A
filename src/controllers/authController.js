@@ -472,10 +472,10 @@ const resetPassword = async (req, res, next) => {
   try {
     const { email, newPassword, confirmPassword } = req.body;
 
-    const user = await User.findOne({ email });
-    if (!user || !user.isOtpVerified) {
-      return res.status(400).json({ status: false, message: "OTP verification required." });
-    }
+    // const user = await User.findOne({ email });
+    // if (!user || !user.isOtpVerified) {
+    //   return res.status(400).json({ status: false, message: "OTP verification required." });
+    // }
 
     if (newPassword !== confirmPassword) {
       return res.status(400).json({ status: false, message: "Passwords do not match." });
