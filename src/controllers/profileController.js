@@ -191,35 +191,45 @@ exports.changePassword = async (req, res) => {
 
 exports.logout = async (req, res) => {
   try {
-    const { deviceToken } = req.body;  
+    const { deviceToken } = req.body;
 
+    // If deviceToken is empty, return a success message
     if (!deviceToken) {
-      return res.status(400).json({
-        status: false,
-        message: "Please provide deviceToken to log out."
+      return res.status(200).json({
+        status: true,
+        message: "Logged out successfully."
       });
     }
 
     // Find the user by the deviceToken in the deviceTokens array
     const user = await User.findOne({ deviceTokens: deviceToken });
 
-    // if (!user) {
-    //   return res.status(400).json({
-    //     status: false,
-    //     message: "User not found with the provided deviceToken."
-    //   });
-    // }
+    // If the user is not found, still return a successful message
+    if (!user) {
+      return res.status(200).json({
+        status: true,
+        message: "Logged out successfully."
+      });
+    }
 
-    // Remove the deviceToken from the deviceTokens array
-    user.deviceTokens = user.deviceTokens.filter(token => token !== deviceToken);
+    // Check if the deviceToken exists in the user's deviceTokens array
+    if (user.deviceTokens.includes(deviceToken)) {
+      // Remove the deviceToken from the deviceTokens array
+      user.deviceTokens = user.deviceTokens.filter(token => token !== deviceToken);
 
-    // Save the updated user document
-    await user.save();
+      // Save the updated user document
+      await user.save();
 
-    return res.status(200).json({
-      status: true,
-      message: "Logged out successfully and deviceToken removed."
-    });
+      return res.status(200).json({
+        status: true,
+        message: "Logged out successfully."
+      });
+    } else {
+      return res.status(200).json({
+        status: true,
+        message: "Logged out successfully."
+      });
+    }
   } catch (error) {
     console.error(error);
     return res.status(500).json({
@@ -228,6 +238,9 @@ exports.logout = async (req, res) => {
     });
   }
 };
+
+
+
 
 
 // Validation Done
