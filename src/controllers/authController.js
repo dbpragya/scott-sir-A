@@ -148,12 +148,11 @@ const verifyOtp = async (req, res) => {
       },
     });
   } catch (error) {
-    res.status(500).json({
-      status: false,
-      message: error?.message || "Internal Server Error!",
-    });
+    console.error("Create Event Error:", error);
+    return res.status(500).json({ status: false, message: "Server error" });
   }
-};
+  }
+
 
 
 
@@ -245,8 +244,9 @@ const resendOtp = async (req, res) => {
     });
 
     return res.status(200).json({ status: true, message: "OTP resent successfully" });
-  } catch (error) {
-    res.status(500).json({ status: false, message: error?.message || "Internal server error" });
+  }catch (error) {
+    console.error("Create Event Error:", error);
+    return res.status(500).json({ status: false, message: "Server error" });
   }
 };
 
@@ -434,9 +434,9 @@ const forgotPassword = async (req, res, next) => {
     });
 
     return res.json({ status: true, message: "OTP sent to email." });
-  } catch (error) {
-    console.error("Error in forgotPassword function:", error);
-    next(error);
+  }  catch (error) {
+    console.error("Create Event Error:", error);
+    return res.status(500).json({ status: false, message: "Server error" });
   }
 };
 
@@ -464,7 +464,8 @@ const verifyResetPassword = async (req, res, next) => {
     await user.save();
     return res.json({ status: true, message: "OTP verified successfully." });
   } catch (error) {
-    next(error);
+    console.error("Create Event Error:", error);
+    return res.status(500).json({ status: false, message: "Server error" });
   }
 };
 
@@ -472,7 +473,7 @@ const resetPassword = async (req, res, next) => {
   try {
     const { email, newPassword, confirmPassword } = req.body;
 
-    // const user = await User.findOne({ email });
+    const user = await User.findOne({ email });
     // if (!user || !user.isOtpVerified) {
     //   return res.status(400).json({ status: false, message: "OTP verification required." });
     // }
@@ -489,8 +490,9 @@ const resetPassword = async (req, res, next) => {
     user.isOtpVerified = false;
     await user.save();
     return res.json({ status: true, message: "Password reset successfully." });
-  } catch (error) {
-    next(error);
+  }  catch (error) {
+    console.error("Create Event Error:", error);
+    return res.status(500).json({ status: false, message: "Server error" });
   }
 };
 
