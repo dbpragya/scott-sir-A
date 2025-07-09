@@ -203,12 +203,12 @@ exports.logout = async (req, res) => {
     // Find the user by the deviceToken in the deviceTokens array
     const user = await User.findOne({ deviceTokens: deviceToken });
 
-    if (!user) {
-      return res.status(400).json({
-        status: false,
-        message: "User not found with the provided deviceToken."
-      });
-    }
+    // if (!user) {
+    //   return res.status(400).json({
+    //     status: false,
+    //     message: "User not found with the provided deviceToken."
+    //   });
+    // }
 
     // Remove the deviceToken from the deviceTokens array
     user.deviceTokens = user.deviceTokens.filter(token => token !== deviceToken);
