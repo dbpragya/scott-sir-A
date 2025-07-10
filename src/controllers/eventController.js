@@ -732,13 +732,7 @@ exports.voteOnEvent = async (req, res) => {
       message: "Server error",
     });
   }
-};
-
-
-
-
-
-
+}
 
 exports.getInvitedEvents = async (req, res) => {
   try {
@@ -865,22 +859,19 @@ exports.getInvitedEvents = async (req, res) => {
 
 
 
-
-
 exports.getVotersByDate = async (req, res) => {
   try {
     const { eventId } = req.params;
-    const { selectedDate } = req.query;
+    const { selectedDate, timeSlot } = req.query;
 
-    if (!selectedDate) {
+    if (!selectedDate || !timeSlot) {
       return res.status(400).json({
         status: false,
-        message: "Please provide selectedDate query parameter."
+        message: "Please provide both selectedDate and timeSlot query parameters."
       });
     }
 
     const event = await Event.findById(eventId).populate('votes.user', 'first_name profilePicture voteType');
-
     if (!event) {
       return res.status(404).json({
         status: false,
@@ -896,11 +887,35 @@ exports.getVotersByDate = async (req, res) => {
     }
 
     const selectedDateISO = new Date(selectedDate).toISOString().split('T')[0];
+    const normalizedQueryTimeSlot = timeSlot.trim().toLowerCase();
 
-    // Filter votes based on the selected date and voteType being "yes"
+    console.log(`🔍 Requested Date: ${selectedDateISO}, TimeSlot: ${normalizedQueryTimeSlot}`);
+    console.log(`📦 Total Votes Found: ${event.votes.length}`);
+
+    // Log all vote details
+    event.votes.forEach((vote, index) => {
+      console.log(`🔸 Vote #${index + 1}`);
+      console.log(`  └ date: ${new Date(vote.date).toISOString()}`);
+      console.log(`  └ voteDateISO: ${new Date(vote.date).toISOString().split('T')[0]}`);
+      console.log(`  └ voteType: ${vote.voteType}`);
+      console.log(`  └ timeSlot: ${vote.timeSlot}`);
+      console.log(`  └ timeSlot(normalized): ${vote.timeSlot?.trim().toLowerCase()}`);
+    });
+
     const votersForDate = event.votes.filter(vote => {
       const voteDateISO = new Date(vote.date).toISOString().split('T')[0];
-      return voteDateISO === selectedDateISO && vote.voteType === 'yes'; // Only include "yes" votes
+      const normalizedVoteTimeSlot = vote.timeSlot?.trim().toLowerCase();
+
+      const match =
+        voteDateISO === selectedDateISO &&
+        normalizedVoteTimeSlot === normalizedQueryTimeSlot &&
+        vote.voteType === 'yes';
+
+      if (match) {
+        console.log(`✅ Matched vote: user ${vote.user?.first_name || 'Unknown'}`);
+      }
+
+      return match;
     }).map(vote => ({
       userId: vote.user._id,
       name: vote.user.first_name,
@@ -909,20 +924,23 @@ exports.getVotersByDate = async (req, res) => {
         : ""
     }));
 
+    console.log(`✅ Total Voters Matched: ${votersForDate.length}`);
+
     res.status(200).json({
       status: true,
-      message: "Voters for the selected date retrieved successfully.",
+      message: "Voters for the selected date and timeslot retrieved successfully.",
       data: {
         eventId,
-        description: event.description, // 👈 Added this line
+        description: event.description,
         date: selectedDateISO,
+        timeSlot,
         voters: votersForDate,
-        totalVoters: votersForDate.length // Count only users who voted "yes"
+        totalVoters: votersForDate.length
       }
     });
 
   } catch (error) {
-    console.error("Get Voters By Date Error:", error);
+    console.error("❌ Get Voters By Date Error:", error);
     res.status(500).json({
       status: false,
       message: "Server error"
@@ -1022,3 +1040,4 @@ exports.finalizeEventDate = async (req, res) => {
     res.status(500).json({ status: false, message: "Server error" });
   }
 };
+
