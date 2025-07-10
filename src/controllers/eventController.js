@@ -738,7 +738,7 @@ exports.getInvitedEvents = async (req, res) => {
   try {
     const userId = req.user.id;
 
-    // Find events where user is invited but not the creator
+
     const events = await Event.find({
       invitedUsers: userId,
       createdBy: { $ne: userId },
@@ -752,6 +752,7 @@ exports.getInvitedEvents = async (req, res) => {
         select: "profilePicture _id",
       });
 
+
     if (events.length === 0) {
       console.log("No invited events found for user.");
       return res.status(404).json({
@@ -761,10 +762,19 @@ exports.getInvitedEvents = async (req, res) => {
     }
 
     const simplifiedEvents = events.map(event => {
-      // --- Votes by date processing ---
+
       const votesByDateMap = {};
       event.votes.forEach(vote => {
-        if (!vote.date) return;
+   
+
+        if (!vote.date) {
+          return;
+        }
+
+        if (vote.voteType !== "yes") {
+          return;
+        }
+
         const voteDateStr = new Date(vote.date).toISOString().split('T')[0];
         if (!votesByDateMap[voteDateStr]) {
           votesByDateMap[voteDateStr] = {
@@ -781,7 +791,7 @@ exports.getInvitedEvents = async (req, res) => {
         }
       });
 
-      // --- Dates with vote info ---
+
       const datesWithVotes = event.dates.map(d => {
         const eventDateStr = new Date(d.date).toISOString().split('T')[0];
         return {
@@ -793,7 +803,7 @@ exports.getInvitedEvents = async (req, res) => {
         };
       });
 
-      // --- Creator details ---
+
       const creator = {
         name: event.createdBy?.first_name || "",
         profilePicture: event.createdBy?.profilePicture
@@ -805,7 +815,6 @@ exports.getInvitedEvents = async (req, res) => {
         ? `${process.env.LIVE_URL}/${creator.profilePicture}`
         : "";
 
-      // --- Finalized date ---
       const finalizedDate = event.finalizedDate
         ? {
             date: event.finalizedDate.date || "",
@@ -816,6 +825,8 @@ exports.getInvitedEvents = async (req, res) => {
             timeSlot: ""
           };
 
+      const yesVotes = event.votes.filter(vote => vote.voteType === "yes");
+
       return {
         id: event._id,
         name: event.name || "",
@@ -823,15 +834,13 @@ exports.getInvitedEvents = async (req, res) => {
         description: event.description || "",
         invitationCustomization: event.invitationCustomization || '',
         type: "Invited",
-       creatorProfilePicture: {
-  name: creator.name,
-  profilePicture: creator.profilePicture
-    ? `${process.env.LIVE_URL}/${creator.profilePicture}`
-    : ""
-},
-        voteCount: event.votes.length || 0,
-        votersProfilePictures: event.votes.length > 0
-          ? event.votes.map(vote => ({
+        creatorProfilePicture: {
+          name: creator.name,
+          profilePicture: creatorProfilePictureUrl
+        },
+        voteCount: yesVotes.length,
+        votersProfilePictures: yesVotes.length > 0
+          ? yesVotes.map(vote => ({
               userId: vote.user?._id,
               profilePicture: vote.user?.profilePicture
                 ? `${process.env.LIVE_URL}/${vote.user.profilePicture.replace(/\\/g, "/")}`
@@ -841,6 +850,7 @@ exports.getInvitedEvents = async (req, res) => {
         finalizedDate
       };
     });
+
 
     res.status(200).json({
       status: true,
@@ -856,6 +866,8 @@ exports.getInvitedEvents = async (req, res) => {
     });
   }
 };
+
+
 
 
 
