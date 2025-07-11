@@ -9,8 +9,15 @@ const GroupSchema = new mongoose.Schema({
   },
   members: [
     {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User"
+      user: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User"
+      },
+      role: {
+        type: String,
+        enum: ["planner", "invited"],  // Changed "participant" to "invited"
+        default: "invited"
+      }
     }
   ],
   createdAt: {

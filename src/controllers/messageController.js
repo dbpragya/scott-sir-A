@@ -5,38 +5,39 @@ const User = require("../models/User");
 
 exports.getGroupMessages = async (req, res) => {
   try {
-    const { groupId } = req.params;
-    const userId = req.user.id;
+    const { groupId } = req.params;  // Get groupId from the URL parameter
 
-    const group = await Group.findById(groupId);
-    if (!group) {
-      return res.status(404).json({ status: false, message: "Group not found" });
+    console.log(`User ${req.user.id} requested messages for group ${groupId}`);
+
+    // Validate groupId
+    if (!groupId) {
+      console.log("Group ID is missing in the request");
+      return res.status(400).json({ status: false, message: "Group ID is required" });
     }
 
-    const isMember = group.members.some(m => m.toString() === userId);
+    // Find all messages for the group (using groupId)
+    const messages = await Message.find({ groupId }).populate('sender', 'first_name last_name profilePicture').sort({ sentAt: 1 });
 
-    let isEventCreator = false;
-    if (group.eventId) {
-      const event = await Event.findById(group.eventId);
-      if (event && event.createdBy.toString() === userId) {
-        isEventCreator = true;
-      }
+    if (!messages) {
+      console.log(`No messages found for group ${groupId}`);
+      return res.status(404).json({ status: false, message: "No messages found for this group" });
     }
 
-    if (!isMember && !isEventCreator) {
-      return res.status(403).json({ status: false, message: "You are not the member of this group" });
-    }
+    // Log the found messages
+    console.log(`Found ${messages.length} messages for group ${groupId}`);
 
-    const messages = await Message.find({ groupId })
-      .sort({ sentAt: 1 })
-      .populate("sender", "name avatar");
-
-    res.json({ status: true, messages });
-  } catch (err) {
-    console.error("Get messages error:", err);
-    res.status(500).json({ status: false, message: "Server error" });
+    // Return the messages in the response
+    return res.status(200).json({
+      status: true,
+      message: "Messages retrieved successfully",
+      data: messages,
+    });
+  } catch (error) {
+    console.error("Error retrieving messages:", error);
+    res.status(500).json({ status: false, message: "Failed to retrieve messages" });
   }
 };
+
 
 exports.sendMessage = async (req, res) => {
   try {
@@ -44,74 +45,93 @@ exports.sendMessage = async (req, res) => {
     const groupId = req.params.groupId;  
     const { text } = req.body;
 
+    console.log(`User ${userId} triggered sendMessage API for group ${groupId} with text: "${text}"`);
+
+    // Validate inputs
     if (!groupId || !text) {
+      console.log("Missing groupId or text in the request body");
       return res.status(400).json({ status: false, message: "Missing groupId or text" });
     }
 
+    // Find the group
     const group = await Group.findById(groupId);
     if (!group) {
+      console.log(`Group not found with groupId: ${groupId}`);
       return res.status(404).json({ status: false, message: "Group not found" });
     }
+    
+    console.log(`Group found: ${groupId} with members: ${group.members.length} members`);
 
-    const isMember = group.members.some(m => m.toString() === userId);
+    // Check if user is a member of the group
+    const isMember = group.members.some(m => m.user.toString() === userId);
+    console.log(`User ${userId} is ${isMember ? "a member" : "not a member"} of group ${groupId}`);
 
     let isEventCreator = false;
     let eventVoted = false;
 
+    // Check the event associated with the group
     if (group.eventId) {
+      console.log(`Checking event associated with group ${groupId}...`);
       const event = await Event.findById(group.eventId);
       if (event) {
         if (event.createdBy.toString() === userId) {
           isEventCreator = true;
+          console.log(`User ${userId} is the event creator of event ${event._id}`);
         }
         eventVoted = event.votes.some(vote => vote.user.toString() === userId);
+        console.log(`User ${userId} has ${eventVoted ? "voted" : "not voted"} in event ${event._id}`);
       } else {
+        console.log(`Associated event not found with eventId: ${group.eventId}`);
         return res.status(404).json({ status: false, message: "Associated event not found" });
       }
     }
 
-    if (!isMember || (!eventVoted && !isEventCreator)) {
-      return res.status(403).json({ status: false, message: "Access denied: You must be a voter in this event to send messages." });
+    // Validate if the user is either a member of the group or a voter/event creator
+    if (!isMember && !isEventCreator && !eventVoted) {
+      console.log(`User ${userId} is not authorized to send a message in group ${groupId}`);
+      return res.status(403).json({ status: false, message: "Access denied: You must be a voter in this event or a group member to send messages." });
     }
 
-    // Save message to DB
+    // Save the message in the database
     const message = await Message.create({
       groupId,
       sender: userId,
       text,
     });
+    console.log(`Message created in DB: ${message._id}`);
 
-    // Populate sender info with 'first_name', 'last_name', and 'profilePicture'
-    const senderUser = await User.findById(userId)
-      .select("first_name last_name profilePicture");  // Only select the necessary fields
+    // Populate the sender's information (full name and profile picture)
+    const senderUser = await User.findById(userId).select("first_name last_name profilePicture");
 
     if (!senderUser) {
+      console.log(`Sender user not found with userId: ${userId}`);
       return res.status(404).json({ status: false, message: "Sender user not found" });
     }
 
     // Create full name from first_name and last_name
     const fullName = `${senderUser.first_name} ${senderUser.last_name}`;
-
-    console.log("Message sent by user:", senderUser._id, "in group:", groupId);
-    console.log("Sender user details:", {
+    console.log(`Sender user details:`, {
       _id: senderUser._id,
       name: fullName,
-      profilePicture: senderUser.profilePicture,  // Include profilePicture
+      profilePicture: senderUser.profilePicture,
     });
 
-    // Emit message to group via socket.io
+    // Get the socket.io instance
     const io = req.app.get("io");
+
+    // Emit message to the group only if the user is connected to the group
     io.to(groupId).emit("newMessage", {
       _id: message._id,
       groupId,
       sender: {
         _id: senderUser._id,
-        name: fullName,  // Use full name here
-        profilePicture: senderUser.profilePicture,  // Include profilePicture
+        name: fullName,
+        profilePicture: senderUser.profilePicture,
       },
       text,
       sentAt: message.sentAt,
     });
+    console.log(`Message successfully emitted to group ${groupId}`);
 
     // Respond with the full message details
     res.status(201).json({
@@ -122,8 +142,8 @@ exports.sendMessage = async (req, res) => {
         groupId,
         sender: {
           _id: senderUser._id,
-          name: fullName,  // Full name in the response
-          profilePicture: senderUser.profilePicture,  // Profile picture in the response
+          name: fullName,
+          profilePicture: senderUser.profilePicture,
         },
         text,
         sentAt: message.sentAt,

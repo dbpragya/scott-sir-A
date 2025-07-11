@@ -8,6 +8,8 @@ const createNotification = require('../utils/createNotification');
 const { validationResult } = require("express-validator");
 
 // Validation Done
+
+
 exports.createEvent = async (req, res) => {
   try {
     const { name, location, description, votingTime, dates, invitationCustomization } = req.body;
@@ -32,19 +34,6 @@ exports.createEvent = async (req, res) => {
       subscription.status === 'active' &&
       new Date(subscription.expiryDate) > now;
 
-    // For non-premium, allow only 1 event
-    // if (!hasPremium) {
-    //   const existingEventsCount = await Event.countDocuments({ createdBy: userId });
-
-    //   if (existingEventsCount >= 1) {
-    //     console.warn("Non-premium user tried to create more than 1 event");
-    //     return res.status(403).json({
-    //       status: false,
-    //       message: "Upgrade to premium to create unlimited events"
-    //     });
-    //   }
-    // }
-
     // Handle theme selection
     let selectedTheme = "Theme1"; // Default theme
     if (hasPremium && invitationCustomization?.theme) {
@@ -63,6 +52,20 @@ exports.createEvent = async (req, res) => {
       invitationCustomization: { theme: selectedTheme },
     });
 
+    // Save the event to MongoDB
+    await newEvent.save();
+
+    // Create a new group (chatroom) for the event using eventId as groupId
+    const newGroup = new Group({
+      eventId: newEvent._id,  // Use the eventId as the groupId
+      members: [{ user: userId, role: "planner" }]  // Add the planner as the first member
+    });
+
+    // Save the group to MongoDB
+    await newGroup.save();
+
+    // Set the event's groupId to be the same as eventId
+    newEvent.groupId = newEvent._id;  // Use eventId as groupId
     await newEvent.save();
 
     // Optional badge check logic
@@ -77,7 +80,7 @@ exports.createEvent = async (req, res) => {
       invitationCustomization: newEvent.invitationCustomization,
       type: newEvent.type,
       creatorProfilePicture: {
-        name: user.firstName || "Updated Firstname",  // Default to "Updated Firstname" if firstName is not available
+        name: user.firstName || "Updated Firstname",
         profilePicture: user.profilePicture
           ? `${process.env.LIVE_URL}/${user.profilePicture.replace(/\\/g, "/")}`
           : "",
@@ -88,6 +91,7 @@ exports.createEvent = async (req, res) => {
         date: "",
         timeSlot: "",
       },
+      groupId: newEvent._id,  // Return the eventId as groupId
     };
 
     return res.status(200).json({
@@ -101,6 +105,8 @@ exports.createEvent = async (req, res) => {
     return res.status(500).json({ status: false, message: "Server error" });
   }
 };
+
+
 
 
 
@@ -389,45 +395,86 @@ exports.getEventById = async (req, res) => {
 };
 
 
-
-
-
-
+const socket = require("socket.io-client");
 
 exports.AcceptInvite = async (req, res) => {
   try {
     const { eventId } = req.body;
     const userId = req.user.id;
 
+    console.log(`User ${userId} is attempting to accept invite for event ${eventId}`);
+
+    // Validate eventId
     if (!eventId) {
+      console.log("Event ID is missing in the request body");
       return res.status(400).json({ status: false, message: "Event ID is required" });
     }
 
+    // Find event by eventId
     const event = await Event.findById(eventId);
     if (!event) {
+      console.log(`Event with ID ${eventId} not found`);
       return res.status(404).json({ status: false, message: "Event not found" });
     }
 
-    // Add user to invitedUsers if not already invited
-    if (!event.invitedUsers.includes(userId)) {
-      event.invitedUsers.push(userId);
-      await event.save();
+    // Check if the user is already invited
+    if (event.invitedUsers.includes(userId)) {
+      console.log(`User ${userId} is already invited to event ${eventId}`);
+      return res.status(200).json({
+        status: true,
+        message: "User is already invited to the event",
+      });
     }
 
-    const shareLink = `https://oyster-app-g2hmu.ondigitalocean.app/api/events/invite?eventId=${eventId}`;
+    // Add user to invitedUsers if not already invited
+    event.invitedUsers.push(userId);
+    await event.save();
+    console.log(`User ${userId} added to invitedUsers for event ${eventId}`);
 
-    res.status(200).json({
+    // Add user to the group (chatroom) using eventId as groupId
+    const group = await Group.findOne({ eventId: eventId });
+    if (group) {
+      if (!group.members.some((member) => member.user.toString() === userId)) {
+        group.members.push({ user: userId, role: "invited" });
+        await group.save();
+        console.log(`User ${userId} added to the group ${group._id} for event ${eventId}`);
+      } else {
+        console.log(`User ${userId} is already a member of group ${group._id}`);
+      }
+    } else {
+      console.log(`Group not found for event ${eventId}`);
+    }
+
+    // Log the generated invite link for sharing
+    const shareLink = `https://your-app-url.com/api/events/invite?eventId=${eventId}`;
+    console.log(`Generated share link: ${shareLink}`);
+
+    // Connect to Socket.IO server and join the group chatroom using eventId as groupId
+    // You don't need to create a new socket connection here, instead manage it on the client side
+    const io = req.app.get("io");
+
+    // Emit the event for the user to join the chatroom
+    io.to(eventId).emit("userJoinedGroup", { userId, eventId });
+    console.log(`User ${userId} joined group ${eventId}`);
+
+    // Return success response
+    return res.status(200).json({
       status: true,
       message: "Invitation Accepted Successfully",
-        });
+    });
   } catch (error) {
-    console.error("Get Share Link Error:", error);
-    res.status(500).json({
+    console.error("Error accepting invite:", error);
+    return res.status(500).json({
       status: false,
-      message: "Failed to generate share link",
+      message: "Failed to process invite",
     });
   }
 };
+
+
+
+
+
 
 
 exports.handleInviteLink = async (req, res) => {
