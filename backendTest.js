@@ -1,23 +1,20 @@
 const { io } = require("socket.io-client");
 const readline = require("readline");
 
-const socket = io("http://192.168.1.25:5000", {
+const socket = io("https://oyster-app-g2hmu.ondigitalocean.app", {
   auth: {
-    userId: "686ccd49c14988f9cbdb543d", // Your user ID
+    userId: "686ccd49c14988f9cbdb543d", 
   },
   transports: ["websocket"],
 });
 
-const groupId = "685bf5d97af9b225ee43cf90"; // Your group ID
+const groupId = "685bf5d97af9b225ee43cf90"; 
 
 socket.on("connect", () => {
   console.log("✅ Connected to socket server");
-  
-  // Join group only once
-  socket.emit("joinGroup", groupId);
 });
 
-socket.on("joinedGroup", (groupId) => {
+socket.emit("joinGroup", (groupId) => {
   console.log("✅ Joined group:", groupId);
   console.log("💬 Type your message below and press Enter:");
 });
