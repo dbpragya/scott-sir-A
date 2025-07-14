@@ -26,6 +26,34 @@ const socketHandler = (server) => {
   });
 
   io.on("connection", (socket) => {
+    socket.on("joinGroup", async (groupId) => {
+      try {
+        console.log(`User ${socket.userId} attempting to join group ${groupId}`);
+
+        const group = await Group.findById(groupId);
+        if (!group) {
+          socket.emit("errorMessage", "Group not found");
+          console.log(`Group not found for groupId: ${groupId}`);
+          return;
+        }
+
+        // Check if the user is a member of the group
+        const isMember = group.members.some((m) => m.user.equals(socket.userId));
+        if (!isMember) {
+          socket.emit("errorMessage", "Not authorized to join this group");
+          console.log(`User ${socket.userId} is not authorized to join group ${groupId}`);
+          return;
+        }
+        socket.join(groupId);
+        console.log(`User ${socket.userId} joined group ${groupId}`);
+
+        socket.emit("joinedGroup", { groupId });
+      } catch (err) {
+        socket.emit("errorMessage", err.message);
+        console.error("Error joining group:", err);
+      }
+    });
+
     socket.on("sendMessage", async ({ groupId, text }) => {
       try {
         console.log(`User ${socket.userId} sending message to group ${groupId}`);
