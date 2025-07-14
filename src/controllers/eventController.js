@@ -7,9 +7,6 @@ const Group = require("../models/Group");
 const createNotification = require('../utils/createNotification');
 const { validationResult } = require("express-validator");
 
-// Validation Done
-
-
 exports.createEvent = async (req, res) => {
   try {
     const { name, location, description, votingTime, dates, invitationCustomization } = req.body;
@@ -106,10 +103,6 @@ exports.createEvent = async (req, res) => {
   }
 };
 
-
-
-
-
 exports.getAllEvents = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -128,21 +121,21 @@ exports.getAllEvents = async (req, res) => {
     const modifiedEvents = events.map(event => {
       // Format dates with votes count
       const votesByDateMap = {};
-      
+
       event.votes.forEach(vote => {
         if (!vote.date || vote.voteType !== 'yes') return; // Only count "yes" votes
-        
+
         const voteDateStr = new Date(vote.date).toISOString().split('T')[0];
-        
+
         if (!votesByDateMap[voteDateStr]) {
           votesByDateMap[voteDateStr] = {
             count: 0,
             votersProfilePictures: []
           };
         }
-        
+
         votesByDateMap[voteDateStr].count++; // Increment only for "yes" votes
-        
+
         // Add profile picture of users who voted "yes"
         if (vote.user && vote.user.profilePicture) {
           votesByDateMap[voteDateStr].votersProfilePictures.push({
@@ -155,7 +148,7 @@ exports.getAllEvents = async (req, res) => {
       // Build the final array of dates with vote count and profiles
       const datesWithVotes = event.dates.map(d => {
         const eventDateStr = new Date(d.date).toISOString().split('T')[0];
-        
+
         return {
           date: d.date,
           timeSlot: d.timeSlot || "",  // Default empty string if no timeSlot
@@ -176,13 +169,13 @@ exports.getAllEvents = async (req, res) => {
       // Handling finalizedDate
       const finalizedDate = event.finalizedDate
         ? {
-            date: event.finalizedDate.date || "", // If no date, show empty string
-            timeSlot: event.finalizedDate.timeSlot || "", // If no timeSlot, show empty string
-          }
+          date: event.finalizedDate.date || "", // If no date, show empty string
+          timeSlot: event.finalizedDate.timeSlot || "", // If no timeSlot, show empty string
+        }
         : {
-            date: "", // Default to empty string if no finalizedDate
-            timeSlot: "", // Default to empty string if no finalizedDate
-          };
+          date: "", // Default to empty string if no finalizedDate
+          timeSlot: "", // Default to empty string if no finalizedDate
+        };
 
       // Return the event details in the desired format
       return {
@@ -215,10 +208,8 @@ exports.getAllEvents = async (req, res) => {
   }
 };
 
-
 exports.getEventById = async (req, res) => {
   try {
-    console.log('Fetching event by ID:', req.params.eventId);
     const event = await Event.findById(req.params.eventId)
       .populate({ path: 'invitedUsers', select: 'profilePicture _id' })
       .populate({ path: 'votes.user', select: 'profilePicture _id' })
@@ -229,9 +220,9 @@ exports.getEventById = async (req, res) => {
       return res.status(404).json({ status: false, message: "Event not found" });
     }
 
-    console.log('Event fetched successfully:', event);
-
-    // Helper function to format the date to "Weekday YYYY-MM-DD"
+    const group = await Group.findOne({ eventId: req.params.eventId })
+      .populate({ path: 'eventId', select: '_id' }) 
+      .select('_id');  
     const formatWeekdayDate = (dateStr) => {
       const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
       const d = new Date(dateStr);
@@ -240,14 +231,12 @@ exports.getEventById = async (req, res) => {
       const year = d.getUTCFullYear();
       const month = String(d.getUTCMonth() + 1).padStart(2, '0');
       const day = String(d.getUTCDate()).padStart(2, '0');
-
       return `${weekday} ${year}-${month}-${day}`;
     };
 
     let remainingTimeMs = 0;
     let remainingTimeText = "Voting ended";
 
-    // Calculate remaining voting time if available
     if (event.votingTime && event.createdAt) {
       const match = event.votingTime.match(/^(\d+)\s*hrs?$/i);
       if (match) {
@@ -276,7 +265,6 @@ exports.getEventById = async (req, res) => {
       }
     }
 
-    // If the event is finalized, override the voting time
     if (event.isFinalized) {
       remainingTimeText = "Voting is no longer available — the event is already final.";
     }
@@ -383,6 +371,7 @@ exports.getEventById = async (req, res) => {
       isFinalized: isFinalized,
       finalizedDate: finalizedData || '',
       type: eventType || '',
+      groupId: group?._id || ''
     };
 
     console.log('Event Details:', eventDetails);
@@ -812,7 +801,7 @@ exports.getInvitedEvents = async (req, res) => {
 
       const votesByDateMap = {};
       event.votes.forEach(vote => {
-   
+
 
         if (!vote.date) {
           return;
@@ -864,13 +853,13 @@ exports.getInvitedEvents = async (req, res) => {
 
       const finalizedDate = event.finalizedDate
         ? {
-            date: event.finalizedDate.date || "",
-            timeSlot: event.finalizedDate.timeSlot || ""
-          }
+          date: event.finalizedDate.date || "",
+          timeSlot: event.finalizedDate.timeSlot || ""
+        }
         : {
-            date: "",
-            timeSlot: ""
-          };
+          date: "",
+          timeSlot: ""
+        };
 
       const yesVotes = event.votes.filter(vote => vote.voteType === "yes");
 
@@ -888,11 +877,11 @@ exports.getInvitedEvents = async (req, res) => {
         voteCount: yesVotes.length,
         votersProfilePictures: yesVotes.length > 0
           ? yesVotes.map(vote => ({
-              userId: vote.user?._id,
-              profilePicture: vote.user?.profilePicture
-                ? `${process.env.LIVE_URL}/${vote.user.profilePicture.replace(/\\/g, "/")}`
-                : ""
-            }))
+            userId: vote.user?._id,
+            profilePicture: vote.user?.profilePicture
+              ? `${process.env.LIVE_URL}/${vote.user.profilePicture.replace(/\\/g, "/")}`
+              : ""
+          }))
           : [],
         finalizedDate
       };
