@@ -8,11 +8,16 @@ const socketHandler = (server) => {
     cors: {
       origin: "*",
       methods: ["GET", "POST"],
-    }
+      allowedHeaders: ["my-custom-header"],
+      credentials: true
+    },
+    transports: ["websocket"],
   });
 
+
   io.use((socket, next) => {
-    const userId = socket.handshake.auth.userId;
+    // const userId = socket.handshake.auth.userId;
+    const userId = socket.handshake.headers['userid']; 
     if (!userId) {
       return next(new Error("Authentication error: userId required"));
     }
@@ -31,7 +36,7 @@ const socketHandler = (server) => {
           return;
         }
 
-        if (!group.members.some((m) => m === socket.userId)) {
+        if (!group.members.some((m) => m.$oid.toString() === socket.userId)) {
           socket.emit("errorMessage", "Access denied: not a group member");
           return;
         }
@@ -56,7 +61,7 @@ const socketHandler = (server) => {
           return;
         }
 
-        const isMember = group.members.some((m) => m === socket.userId);
+        const isMember = group.members.some((m) => m.$oid.toString() === socket.userId);
         if (!isMember) {
           socket.emit("errorMessage", "Not authorized to send message in this group");
           console.log(`User ${socket.userId} is not authorized to send message in group ${groupId}`);
