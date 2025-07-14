@@ -6,7 +6,7 @@ const User = require('../models/User');
 const socketHandler = (server) => {
   const io = socketIo(server, {
     cors: {
-      origin: "*",  
+      origin: "*",
       methods: ["GET", "POST"],
     }
   });
@@ -22,12 +22,8 @@ const socketHandler = (server) => {
   });
 
   io.on("connection", (socket) => {
-    console.log(`User ${socket.userId} connected: ${socket.id}`);
-
     socket.on("joinGroup", async (groupId) => {
       try {
-        console.log(`User ${socket.userId} attempting to join group ${groupId}`);
-
         const group = await Group.findById(groupId);
         if (!group) {
           socket.emit("errorMessage", "Group not found");
@@ -35,9 +31,8 @@ const socketHandler = (server) => {
           return;
         }
 
-        if (!group.members.some((m) => m.user.toString() === socket.userId)) {
+        if (!group.members.some((m) => m === socket.userId)) {
           socket.emit("errorMessage", "Access denied: not a group member");
-          console.log(`User ${socket.userId} is not a member of group ${groupId}`);
           return;
         }
 
@@ -61,7 +56,7 @@ const socketHandler = (server) => {
           return;
         }
 
-        const isMember = group.members.some((m) => m.user.toString() === socket.userId);
+        const isMember = group.members.some((m) => m === socket.userId);
         if (!isMember) {
           socket.emit("errorMessage", "Not authorized to send message in this group");
           console.log(`User ${socket.userId} is not authorized to send message in group ${groupId}`);

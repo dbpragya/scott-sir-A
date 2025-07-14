@@ -1,33 +1,40 @@
-const io = require("socket.io-client");
+const { io } = require("socket.io-client");
+const readline = require("readline");
 
-// Connect to the Socket.IO server (the same address as the backend server)
-const socket = io("http://localhost:5000", {
-  auth: { userId: "685d2895050256b25d2226b2" },  // Example userId for authentication
+const socket = io("http://192.168.1.25:5000", {
+  auth: {
+    userId: "686ccd49c14988f9cbdb543d", // Your user ID
+  },
+  transports: ["websocket"],
 });
 
-// Listen for successful connection
+const groupId = "685bf5d97af9b225ee43cf90"; // Your group ID
+
 socket.on("connect", () => {
-  console.log("Connected to the server");
-
-  // Emit the 'joinGroup' event with a groupId to join the group (use a real groupId here)
-  const groupId = "6870f4399a5884b83442add8";  // Replace with an actual groupId from your DB
+  console.log("✅ Connected to socket server");
+  
+  // Join group only once
   socket.emit("joinGroup", groupId);
-
-  // Send a test message to the group
-  socket.emit("sendMessage", { groupId, text: "Hello from the backend test!" });
 });
 
-// Listen for the 'newMessage' event from the server
-socket.on("newMessage", (message) => {
-  console.log("New message received:", message);
-});
-
-// Listen for successful group join
 socket.on("joinedGroup", (groupId) => {
-  console.log(`Successfully joined group ${groupId}`);
+  console.log("✅ Joined group:", groupId);
+  console.log("💬 Type your message below and press Enter:");
 });
 
-// Handle errors
-socket.on("errorMessage", (error) => {
-  console.error("Error:", error);
+socket.on("disconnect", () => {
+  console.log("🚫 Disconnected from socket server");
+});
+
+// Use readline to send message manually
+const rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout,
+});
+
+rl.on("line", (input) => {
+  socket.emit("sendMessage", {
+    groupId,
+    text: input,
+  });
 });
