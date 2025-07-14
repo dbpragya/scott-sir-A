@@ -37,7 +37,6 @@ const socketHandler = (server) => {
           return;
         }
 
-        // Check if the user is a member of the group
         const isMember = group.members.some((m) => m.user && m.user.equals(socket.userId));
         if (!isMember) {
           socket.emit("errorMessage", `User ${socket.userId} is not authorized to join group ${groupId}`);
