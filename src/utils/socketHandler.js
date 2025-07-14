@@ -93,7 +93,7 @@ const socketHandler = (server) => {
           sender: {
             _id: senderUser?._id,
             name: fullName,
-            profilePicture: senderUser?.profilePicture,
+            profilePicture: senderUser.profilePicture ? `${process.env.LIVE_URL}/${senderUser.profilePicture}` : ''
           },
           text,
           sentAt: message?.sentAt,
