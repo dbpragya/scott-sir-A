@@ -16,7 +16,6 @@ const socketHandler = (server) => {
 
 
   io.use((socket, next) => {
-    // const userId = socket.handshake.auth.userId;
     const userId = socket.handshake.headers['userid']; 
     if (!userId) {
       return next(new Error("Authentication error: userId required"));
@@ -27,29 +26,6 @@ const socketHandler = (server) => {
   });
 
   io.on("connection", (socket) => {
-    socket.on("joinGroup", async (groupId) => {
-      try {
-        const group = await Group.findById(groupId);
-        if (!group) {
-          socket.emit("errorMessage", "Group not found");
-          console.log(`Group not found for groupId: ${groupId}`);
-          return;
-        }
-
-        if (!group.members.some((m) => m.$oid.toString() === socket.userId)) {
-          socket.emit("errorMessage", "Access denied: not a group member");
-          return;
-        }
-
-        socket.join(groupId);
-        socket.emit("joinedGroup", groupId);
-        console.log(`User ${socket.userId} joined group ${groupId}`);
-      } catch (err) {
-        socket.emit("errorMessage", "Server error joining group");
-        console.error("Error joining group:", err);
-      }
-    });
-
     socket.on("sendMessage", async ({ groupId, text }) => {
       try {
         console.log(`User ${socket.userId} sending message to group ${groupId}`);
@@ -103,7 +79,7 @@ const socketHandler = (server) => {
 
         console.log(`Message emitted to group ${groupId} by user ${socket.userId}`);
       } catch (err) {
-        socket.emit("errorMessage", "Server error sending message");
+        socket.emit("errorMessage", err.message);
         console.error("Error sending message:", err);
       }
     });
