@@ -16,7 +16,7 @@ const socketHandler = (server) => {
 
 
   io.use((socket, next) => {
-    const userId = socket.handshake.headers['userid']; 
+    const userId = socket.handshake.headers['userid'];
     if (!userId) {
       return next(new Error("Authentication error: userId required"));
     }
@@ -37,7 +37,7 @@ const socketHandler = (server) => {
           return;
         }
 
-        const isMember = group.members.some((m) => m.$oid.toString() === socket.userId);
+        const isMember = group.members.some((m) => m.user.equals(socket.userId));
         if (!isMember) {
           socket.emit("errorMessage", "Not authorized to send message in this group");
           console.log(`User ${socket.userId} is not authorized to send message in group ${groupId}`);
