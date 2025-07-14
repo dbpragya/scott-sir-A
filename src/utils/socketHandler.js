@@ -58,23 +58,17 @@ const socketHandler = (server) => {
           return;
         }
 
-        const fullName = `${senderUser.first_name} ${senderUser.last_name}`;
-        console.log(`Sender user details:`, {
-          _id: senderUser._id,
-          name: fullName,
-          profilePicture: senderUser.profilePicture,
-        });
-
+        const fullName = `${senderUser?.first_name} ${senderUser?.last_name}`;
         io.to(groupId).emit("newMessage", {
-          _id: message._id,
+          _id: message?._id,
           groupId,
           sender: {
-            _id: senderUser._id,
+            _id: senderUser?._id,
             name: fullName,
-            profilePicture: senderUser.profilePicture,
+            profilePicture: senderUser?.profilePicture,
           },
           text,
-          sentAt: message.sentAt,
+          sentAt: message?.sentAt,
         });
 
         console.log(`Message emitted to group ${groupId} by user ${socket.userId}`);
