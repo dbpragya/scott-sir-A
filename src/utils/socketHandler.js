@@ -83,14 +83,13 @@ const socketHandler = (server) => {
           console.log(`Sender user not found for userId: ${socket.userId}`);
           return;
         }
-
-        const fullName = `${senderUser?.first_name} ${senderUser?.last_name}`;
         io.to(groupId).emit("newMessage", {
           _id: message?._id,
           groupId,
           sender: {
             _id: senderUser?._id,
-            name: fullName,
+            first_name: senderUser?.first_name || '',
+            last_name: senderUser?.last_name || '',
             profilePicture: senderUser.profilePicture ? `${process.env.LIVE_URL}/${senderUser.profilePicture}` : ''
           },
           text,
