@@ -16,21 +16,19 @@ exports.getGroupMessages = async (req, res) => {
     }
 
     // Find all messages for the group (using groupId)
-    const messages = await Message.find({ groupId }).populate('sender', 'first_name last_name profilePicture').sort({ sentAt: 1 });
+    const messages = await Message.find({ groupId }).populate('sender', 'first_name last_name profilePicture').select("-__v").sort({ sentAt: 1 });
 
     if (!messages) {
-      console.log(`No messages found for group ${groupId}`);
       return res.status(404).json({ status: false, message: "No messages found for this group" });
     }
 
-    const baseUrl = process.env.LIVE_URL || 'http://localhost:3000'; 
+    const baseUrl = process.env.LIVE_URL || 'http://localhost:3000';
     const updatedMessages = messages.map(message => {
-      if (message.sender && message.sender.profilePicture) {
+      if (!message.sender.profilePicture.startsWith('http://') && !message.sender.profilePicture.startsWith('https://')) {
         message.sender.profilePicture = `${baseUrl}/${message.sender.profilePicture}`;
       }
       return message;
     });
-
     return res.status(200).json({
       status: true,
       message: "Messages retrieved successfully",
