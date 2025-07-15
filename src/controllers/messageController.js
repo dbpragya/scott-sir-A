@@ -23,14 +23,18 @@ exports.getGroupMessages = async (req, res) => {
       return res.status(404).json({ status: false, message: "No messages found for this group" });
     }
 
-    // Log the found messages
-    console.log(`Found ${messages.length} messages for group ${groupId}`);
+    const baseUrl = process.env.LIVE_URL || 'http://localhost:3000'; 
+    const updatedMessages = messages.map(message => {
+      if (message.sender && message.sender.profilePicture) {
+        message.sender.profilePicture = `${baseUrl}/${message.sender.profilePicture}`;
+      }
+      return message;
+    });
 
-    // Return the messages in the response
     return res.status(200).json({
       status: true,
       message: "Messages retrieved successfully",
-      data: messages,
+      data: updatedMessages,
     });
   } catch (error) {
     console.error("Error retrieving messages:", error);
@@ -42,7 +46,7 @@ exports.getGroupMessages = async (req, res) => {
 exports.sendMessage = async (req, res) => {
   try {
     const userId = req.user.id;
-    const groupId = req.params.groupId;  
+    const groupId = req.params.groupId;
     const { text } = req.body;
 
     console.log(`User ${userId} triggered sendMessage API for group ${groupId} with text: "${text}"`);
@@ -59,7 +63,7 @@ exports.sendMessage = async (req, res) => {
       console.log(`Group not found with groupId: ${groupId}`);
       return res.status(404).json({ status: false, message: "Group not found" });
     }
-    
+
     console.log(`Group found: ${groupId} with members: ${group.members.length} members`);
 
     // Check if user is a member of the group
