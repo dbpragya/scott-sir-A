@@ -92,8 +92,10 @@ exports.getTopRankings = async (req, res) => {
     return res.status(200).json({
       status: true,
       message: 'Rankings fetched successfully',
+      data: {
       yourRanking: yourRanking,
       rankings: rankedWithPosition,
+      }
     });
 
   } catch (error) {
