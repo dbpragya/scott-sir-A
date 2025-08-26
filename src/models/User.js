@@ -1,12 +1,18 @@
 const mongoose = require("mongoose");
 
+
+const BASE_URL = "https://oyster-app-g2hmu.ondigitalocean.app";
+
 const UserSchema = new mongoose.Schema({
   first_name: { type: String, required: true },
   last_name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
   password: { type: String, default: null },
-  profilePicture: { type: String, default: '' },
-  otp: { type: String, default: null },
+  profilePicture: {
+    type: String,
+    default: `${BASE_URL}/uploads/image%20(5).png`  
+  },
+    otp: { type: String, default: null },
   otpExpiry: { type: Date, default: null },
   deviceTokens: { type: [String], default: [] },
   isVerify: { type: Boolean, default: false },
