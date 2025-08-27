@@ -2,12 +2,16 @@ const User = require('../models/User');
 const Event = require('../models/Event');
 const BADGES = require('../constants/badges');
 
-async function awardBadge(userId, badgeName) {
+async function awardBadge(userId, badge) {
   const user = await User.findById(userId);
   if (!user) return;
 
-  if (!user.badges.some(b => b.name === badgeName)) {
-    user.badges.push({ name: badgeName });
+  // Prevent duplicate badge
+  if (!user.badges.some(b => b.name === badge.name)) {
+    user.badges.push({
+      name: badge.name,
+      image: badge.image
+    });
     await user.save();
   }
 }
@@ -23,7 +27,11 @@ async function checkTopPlannerBadge(userId) {
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-  const count = await Event.countDocuments({ createdBy: userId, createdAt: { $gte: thirtyDaysAgo } });
+  const count = await Event.countDocuments({
+    createdBy: userId,
+    createdAt: { $gte: thirtyDaysAgo }
+  });
+
   if (count >= 3) {
     await awardBadge(userId, BADGES.TOP_PLANNER);
   }

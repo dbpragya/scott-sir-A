@@ -5,10 +5,12 @@ const bcrypt = require("bcryptjs");
 const SubscriptionPlan = require('../models/SubscriptionPlan');
 const { body, validationResult } = require("express-validator");
 
+const BADGES = require('../constants/badges');
+
+
 exports.getProfile = async (req, res) => {
   try {
     const token = req.header('Authorization')?.replace('Bearer ', '');
-
     if (!token) {
       return res.status(401).json({ status: false, message: "No token, access denied" });
     }
@@ -17,7 +19,6 @@ exports.getProfile = async (req, res) => {
     const userId = decoded.id;
 
     const user = await User.findById(userId).select('-password');
-
     if (!user) {
       return res.status(400).json({ status: false, message: "User not found" });
     }
@@ -32,7 +33,12 @@ exports.getProfile = async (req, res) => {
         profilePicture: user.profilePicture
           ? `${process.env.LIVE_URL}/${user.profilePicture.replace(/\\/g, '/')}`
           : '',
-        badges: user.badges || []
+        badges: (user.badges || []).map(badge => ({
+          ...badge.toObject(),
+          image: badge.image
+            ? `${process.env.LIVE_URL}${badge.image.replace(/\\/g, '/')}`
+            : ''
+        }))
       }
     });
   } catch (error) {
@@ -40,6 +46,8 @@ exports.getProfile = async (req, res) => {
     res.status(500).json({ status: false, message: "Server error" });
   }
 };
+
+
 
 // Validation Done
 exports.updateProfile = async (req, res) => {
@@ -302,15 +310,16 @@ exports.updateChatNotifications = async (req, res) => {
 
 exports.getPlan = async (req, res) => {
   try {
-    const plan = await SubscriptionPlan.findOne();
+    const plan = await SubscriptionPlan.findOne().select('-__v'); // Exclude __v
     if (!plan) {
       return res.status(404).json({ status: false, message: 'Subscription plan not found' });
     }
-      return res.status(200).json({ status: true, message: 'Plan fetched successfully', data: plan });
+    return res.status(200).json({ status: true, message: 'Plan fetched successfully', data: plan });
   } catch (error) {
     res.status(500).json({ status: false, message: 'Server error, please try again later.' });
   }
 };
+
 
 exports.purchasePlan = async (req, res) => {
   try {
@@ -360,9 +369,9 @@ exports.purchasePlan = async (req, res) => {
       if (new Date(user.subscription.expiryDate) < expiryDate) {
         user.subscription.expiryDate = expiryDate;
         await user.save();
-        return res.status(200).json({ status: true, message: 'Subscription extended', subscription: user.subscription });
+        return res.status(200).json({ status: true, message: 'Subscription extended', data: user.subscription });
       }
-      return res.status(200).json({ status: true, message: 'Subscription already active', subscription: user.subscription });
+      return res.status(200).json({ status: true, message: 'Subscription already active', data: user.subscription });
     }
 
     user.subscription = {

@@ -27,9 +27,20 @@ exports.createEvent = async (req, res) => {
     // Check subscription status
     const now = new Date();
     const subscription = user.subscription;
-    const hasPremium = subscription &&
-      subscription.status === 'active' &&
+    const hasPremium = subscription && 
+      subscription.status === 'active' && 
       new Date(subscription.expiryDate) > now;
+
+    // Check if user already has an event if subscription is not active
+    if (!hasPremium) {
+      const existingEvent = await Event.findOne({ createdBy: userId });
+      if (existingEvent) {
+        return res.status(400).json({ 
+          status: false, 
+          message: "You cannot create more than one event. Please upgrade your subscription." 
+        });
+      }
+    }
 
     // Handle theme selection
     let selectedTheme = "Theme1"; // Default theme
@@ -84,10 +95,7 @@ exports.createEvent = async (req, res) => {
       },
       voteCount: newEvent.votes ? newEvent.votes.length : 0,
       votersProfilePictures: [],
-      finalizedDate: {
-        date: "",
-        timeSlot: "",
-      },
+      finalizedDate: { date: "", timeSlot: "" },
       groupId: newEvent._id,  // Return the eventId as groupId
     };
 
@@ -96,7 +104,6 @@ exports.createEvent = async (req, res) => {
       message: "Event created successfully",
       data: responseData,
     });
-
   } catch (error) {
     console.error("Create Event Error:", error);
     return res.status(500).json({ status: false, message: "Server error" });

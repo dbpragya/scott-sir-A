@@ -30,7 +30,10 @@ const UserSchema = new mongoose.Schema({
 
   badges: [{
     name: { type: String, required: true },
-    awardedAt: { type: Date, default: Date.now }
+    awardedAt: { type: Date, default: Date.now },
+        image: { type: String, required: false }
+
+
   }],
 }, { timestamps: true });
 

@@ -95,6 +95,7 @@ exports.getTopRankings = async (req, res) => {
       data: {
       yourRanking: yourRanking,
       rankings: rankedWithPosition,
+      
       }
     });
 
