@@ -95,8 +95,12 @@ exports.updateProfile = async (req, res) => {
         last_name: user.last_name,
         email: user.email, // Include email in the response
         profilePicture: profilePictureUrl, // Format profile picture URL
-        badges: user.badges || [] // Include badges in the response
-      },
+  badges: (user.badges || []).map(badge => ({
+          ...badge.toObject(),
+          image: badge.image
+            ? `${process.env.LIVE_URL}${badge.image.replace(/\\/g, '/')}`
+            : ''
+        }))      },
     });
   } catch (error) {
     console.error("Update Profile Error:", error);
