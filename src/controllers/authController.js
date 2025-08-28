@@ -134,6 +134,10 @@ const verifyOtp = async (req, res) => {
       { expiresIn: "30d" }
     );
 
+       const profilePictureUrl = user.profilePicture
+      ? `${process.env.LIVE_URL}/${user.profilePicture.replace(/\\/g, '/')}`
+      : '';
+
     return res.status(200).json({
       status: true,
       message: "OTP verified successfully",
@@ -143,7 +147,7 @@ const verifyOtp = async (req, res) => {
         first_name: user.first_name,
         last_name: user.last_name,
         email: user.email,
-        profilePicture: user.profilePicture ? [`${process.env.LIVE_URL}/${user.profilePicture}`] : '',
+        profilePicture: profilePictureUrl || '', // Format profile picture URL
         isVerify: user.isVerify,
       },
     });
@@ -368,9 +372,12 @@ const uploadProfilePicture = async (req, res) => {
 
     const userId = req.user.id;
 
+    // Normalize the path: convert backslashes -> forward slashes & remove leading slash
+    const cleanPath = req.file.path.replace(/\\/g, '/').replace(/^\/+/, '');
+
     const updatedUser = await User.findByIdAndUpdate(
       userId,
-      { profilePicture: req.file.path },
+      { profilePicture: cleanPath },
       { new: true }
     );
 
@@ -378,19 +385,20 @@ const uploadProfilePicture = async (req, res) => {
       return res.status(404).json({ status: false, message: "User not found" });
     }
 
-    // Replace backslashes with forward slashes for the URL
-    const profilePictureUrl = updatedUser.profilePicture.replace(/\\/g, '/');
+    const profilePictureUrl =
+      `${process.env.LIVE_URL.replace(/\/$/, '')}/${updatedUser.profilePicture}`;
 
     res.status(200).json({
       status: true,
       message: "Profile picture uploaded successfully",
-      profilePicture: `${process.env.LIVE_URL}/${profilePictureUrl}`,
+      profilePicture: profilePictureUrl,
     });
   } catch (error) {
     console.error("Error uploading profile picture:", error);
     res.status(500).json({ status: false, message: "Internal Server Error!" });
   }
 };
+
 
 
 const forgotPassword = async (req, res, next) => {
