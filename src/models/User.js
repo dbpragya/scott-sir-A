@@ -10,7 +10,7 @@ const UserSchema = new mongoose.Schema({
   password: { type: String, default: null },
   profilePicture: {
     type: String,
-    default: `${BASE_URL}/uploads/image%20(5).png`  
+    default: `uploads/image%20(5).png`  
   },
     otp: { type: String, default: null },
   otpExpiry: { type: Date, default: null },

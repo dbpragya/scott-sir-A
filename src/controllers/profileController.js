@@ -23,6 +23,22 @@ exports.getProfile = async (req, res) => {
       return res.status(400).json({ status: false, message: "User not found" });
     }
 
+    let badges = (user.badges || []).map(badge => ({
+      _id: badge._id ? String(badge._id) : "",
+      name: badge.name || "",
+      awardedAt: badge.awardedAt || "",
+      image: badge.image
+        ? `${process.env.LIVE_URL}${badge.image.replace(/\\/g, '/')}`
+        : ""
+    }));
+
+    // If no badges, return at least one object with empty fields
+    if (badges.length === 0) {
+      badges = [
+        { _id: "", name: "", awardedAt: "", image: "" }
+      ];
+    }
+
     res.status(200).json({
       status: true,
       message: "Profile fetched successfully",
@@ -33,12 +49,7 @@ exports.getProfile = async (req, res) => {
         profilePicture: user.profilePicture
           ? `${process.env.LIVE_URL}/${user.profilePicture.replace(/\\/g, '/')}`
           : '',
-        badges: (user.badges || []).map(badge => ({
-          ...badge.toObject(),
-          image: badge.image
-            ? `${process.env.LIVE_URL}${badge.image.replace(/\\/g, '/')}`
-            : ''
-        }))
+        badges
       }
     });
   } catch (error) {
@@ -46,7 +57,6 @@ exports.getProfile = async (req, res) => {
     res.status(500).json({ status: false, message: "Server error" });
   }
 };
-
 
 
 // Validation Done
@@ -82,10 +92,32 @@ exports.updateProfile = async (req, res) => {
     // Save updated user profile
     await user.save();
 
+    // Normalize profile picture path before building the URL
+    const profilePicturePath = user.profilePicture
+      ? user.profilePicture.replace(/\\/g, '/').replace(/^\/+/, '') // remove backslashes + leading slashes
+      : '';
+
     // Format the profile picture URL and prepare the response
     const profilePictureUrl = user.profilePicture
       ? `${process.env.LIVE_URL}/${user.profilePicture.replace(/\\/g, '/')}`
       : '';
+
+    // --- FIXED BADGES PART ---
+    let badges = (user.badges || []).map(badge => ({
+      _id: badge._id ? String(badge._id) : "",
+      name: badge.name || "",
+      awardedAt: badge.awardedAt || "",
+      image: badge.image
+        ? `${process.env.LIVE_URL}${badge.image.replace(/\\/g, '/')}`
+        : ""
+    }));
+
+    if (badges.length === 0) {
+      badges = [
+        { _id: "", name: "", awardedAt: "", image: "" }
+      ];
+    }
+    // ------------------------
 
     res.status(200).json({
       status: true,
@@ -95,12 +127,8 @@ exports.updateProfile = async (req, res) => {
         last_name: user.last_name,
         email: user.email, // Include email in the response
         profilePicture: profilePictureUrl, // Format profile picture URL
-  badges: (user.badges || []).map(badge => ({
-          ...badge.toObject(),
-          image: badge.image
-            ? `${process.env.LIVE_URL}${badge.image.replace(/\\/g, '/')}`
-            : ''
-        }))      },
+        badges
+      },
     });
   } catch (error) {
     console.error("Update Profile Error:", error);
