@@ -76,14 +76,16 @@ exports.getTopRankings = async (req, res) => {
       },
     ]);
 
-    // Combine and add positions + LIVE_URL for profilePicture
-    const rankedWithPosition = [...premiumRankings, ...nonPremiumRankings].map((user, index) => ({
-      position: index + 1,
-      ...user,
-      profilePicture: user.profilePicture
-        ? `${process.env.LIVE_URL}/${user.profilePicture.replace(/\\/g, '/')}`
-        : '',
-    }));
+   // Combine and add positions + convert position & eventCount to strings
+const rankedWithPosition = [...premiumRankings, ...nonPremiumRankings].map((user, index) => ({
+  position: (index + 1).toString() || '',
+  ...user,
+  eventCount: user.eventCount.toString() || '',
+  profilePicture: user.profilePicture
+    ? `${process.env.LIVE_URL}/${user.profilePicture.replace(/\\/g, '/')}`
+    : '',
+}));
+
 
     // Get the logged-in user's rank
     const userRanking = rankedWithPosition.find(user => user.userId.toString() === loggedInUserId);
@@ -93,7 +95,7 @@ exports.getTopRankings = async (req, res) => {
       status: true,
       message: 'Rankings fetched successfully',
       data: {
-      yourRanking: yourRanking,
+      yourRanking: yourRanking.toString() || '',
       rankings: rankedWithPosition,
       
       }
