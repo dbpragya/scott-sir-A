@@ -779,10 +779,10 @@ exports.voteOnEvent = async (req, res) => {
   }
 }
 
+
 exports.getInvitedEvents = async (req, res) => {
   try {
     const userId = req.user.id;
-
 
     const events = await Event.find({
       invitedUsers: userId,
@@ -797,7 +797,6 @@ exports.getInvitedEvents = async (req, res) => {
         select: "profilePicture _id",
       });
 
-
     if (events.length === 0) {
       console.log("No invited events found for user.");
       return res.status(404).json({
@@ -807,11 +806,8 @@ exports.getInvitedEvents = async (req, res) => {
     }
 
     const simplifiedEvents = events.map(event => {
-
       const votesByDateMap = {};
       event.votes.forEach(vote => {
-
-
         if (!vote.date) {
           return;
         }
@@ -824,18 +820,20 @@ exports.getInvitedEvents = async (req, res) => {
         if (!votesByDateMap[voteDateStr]) {
           votesByDateMap[voteDateStr] = {
             count: 0,
-            votersProfilePictures: []
+            votersProfilePictures: new Map() // ✅ use Map for uniqueness
           };
         }
         votesByDateMap[voteDateStr].count++;
         if (vote.user && vote.user.profilePicture) {
-          votesByDateMap[voteDateStr].votersProfilePictures.push({
-            userId: vote.user._id,
-            profilePicture: `${process.env.LIVE_URL}/${vote.user.profilePicture.replace(/\\/g, "/")}`
-          });
+          votesByDateMap[voteDateStr].votersProfilePictures.set(
+            vote.user._id.toString(),
+            {
+              userId: vote.user._id,
+              profilePicture: `${process.env.LIVE_URL}/${vote.user.profilePicture.replace(/\\/g, "/")}`
+            }
+          );
         }
       });
-
 
       const datesWithVotes = event.dates.map(d => {
         const eventDateStr = new Date(d.date).toISOString().split('T')[0];
@@ -844,10 +842,11 @@ exports.getInvitedEvents = async (req, res) => {
           timeSlot: d.timeSlot || "",
           _id: d._id,
           voteCount: votesByDateMap[eventDateStr]?.count || 0,
-          votersProfilePictures: votesByDateMap[eventDateStr]?.votersProfilePictures || [],
+          votersProfilePictures: Array.from(
+            votesByDateMap[eventDateStr]?.votersProfilePictures?.values() || []
+          ), // ✅ unique profiles only
         };
       });
-
 
       const creator = {
         name: event.createdBy?.first_name || "",
@@ -862,15 +861,26 @@ exports.getInvitedEvents = async (req, res) => {
 
       const finalizedDate = event.finalizedDate
         ? {
-          date: event.finalizedDate.date || "",
-          timeSlot: event.finalizedDate.timeSlot || ""
-        }
+            date: event.finalizedDate.date || "",
+            timeSlot: event.finalizedDate.timeSlot || ""
+          }
         : {
-          date: "",
-          timeSlot: ""
-        };
+            date: "",
+            timeSlot: ""
+          };
 
       const yesVotes = event.votes.filter(vote => vote.voteType === "yes");
+
+      // ✅ make event-level voters unique
+      const uniqueVotersMap = new Map();
+      yesVotes.forEach(vote => {
+        if (vote.user && vote.user.profilePicture) {
+          uniqueVotersMap.set(vote.user._id.toString(), {
+            userId: vote.user._id,
+            profilePicture: `${process.env.LIVE_URL}/${vote.user.profilePicture.replace(/\\/g, "/")}`
+          });
+        }
+      });
 
       return {
         id: event._id,
@@ -884,18 +894,10 @@ exports.getInvitedEvents = async (req, res) => {
           profilePicture: creatorProfilePictureUrl
         },
         voteCount: yesVotes.length,
-        votersProfilePictures: yesVotes.length > 0
-          ? yesVotes.map(vote => ({
-            userId: vote.user?._id,
-            profilePicture: vote.user?.profilePicture
-              ? `${process.env.LIVE_URL}/${vote.user.profilePicture.replace(/\\/g, "/")}`
-              : ""
-          }))
-          : [],
+        votersProfilePictures: Array.from(uniqueVotersMap.values()), // ✅ unique profiles only
         finalizedDate
       };
     });
-
 
     res.status(200).json({
       status: true,
