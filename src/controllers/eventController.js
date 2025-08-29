@@ -114,58 +114,58 @@ exports.getAllEvents = async (req, res) => {
   try {
     const userId = req.user.id;
 
-    // Find events created by the user, of type "Planned"
     const events = await Event.find({ type: "Planned", createdBy: userId })
       .sort({ createdAt: -1 })
       .populate({ path: "createdBy", select: "first_name profilePicture" })
       .populate({ path: "votes.user", select: "profilePicture _id voteType" });
 
-    // If no events found, return an empty list
     if (events.length === 0) {
       return res.status(404).json({ status: false, message: "No events found" });
     }
 
     const modifiedEvents = events.map(event => {
-      // Format dates with votes count
       const votesByDateMap = {};
 
       event.votes.forEach(vote => {
-        if (!vote.date || vote.voteType !== 'yes') return; // Only count "yes" votes
+        if (!vote.date || vote.voteType !== "yes") return;
 
-        const voteDateStr = new Date(vote.date).toISOString().split('T')[0];
+        const voteDateStr = new Date(vote.date).toISOString().split("T")[0];
 
         if (!votesByDateMap[voteDateStr]) {
           votesByDateMap[voteDateStr] = {
             count: 0,
-            votersProfilePictures: []
+            votersProfilePictures: new Map() // Use Map to keep unique users
           };
         }
 
-        votesByDateMap[voteDateStr].count++; // Increment only for "yes" votes
+        // Increment only for "yes" votes
+        votesByDateMap[voteDateStr].count++;
 
-        // Add profile picture of users who voted "yes"
         if (vote.user && vote.user.profilePicture) {
-          votesByDateMap[voteDateStr].votersProfilePictures.push({
-            userId: vote.user._id,
-            profilePicture: `${process.env.LIVE_URL}/${vote.user.profilePicture}`
-          });
+          votesByDateMap[voteDateStr].votersProfilePictures.set(
+            vote.user._id.toString(),
+            {
+              userId: vote.user._id,
+              profilePicture: `${process.env.LIVE_URL}/${vote.user.profilePicture}`
+            }
+          );
         }
       });
 
-      // Build the final array of dates with vote count and profiles
       const datesWithVotes = event.dates.map(d => {
-        const eventDateStr = new Date(d.date).toISOString().split('T')[0];
+        const eventDateStr = new Date(d.date).toISOString().split("T")[0];
 
         return {
           date: d.date,
-          timeSlot: d.timeSlot || "",  // Default empty string if no timeSlot
-          _id: d._id,  // Include _id for the timeSlot
+          timeSlot: d.timeSlot || "",
+          _id: d._id,
           voteCount: votesByDateMap[eventDateStr]?.count || 0,
-          votersProfilePictures: votesByDateMap[eventDateStr]?.votersProfilePictures || [],
+          votersProfilePictures: Array.from(
+            votesByDateMap[eventDateStr]?.votersProfilePictures?.values() || []
+          ) // Convert Map values to array
         };
       });
 
-      // Prepend the live URL to the creator's profile picture path
       const creatorProfilePictureUrl = {
         name: event.createdBy?.first_name || "",
         profilePicture: event.createdBy?.profilePicture
@@ -173,34 +173,36 @@ exports.getAllEvents = async (req, res) => {
           : ""
       };
 
-      // Handling finalizedDate
       const finalizedDate = event.finalizedDate
         ? {
-          date: event.finalizedDate.date || "", // If no date, show empty string
-          timeSlot: event.finalizedDate.timeSlot || "", // If no timeSlot, show empty string
-        }
-        : {
-          date: "", // Default to empty string if no finalizedDate
-          timeSlot: "", // Default to empty string if no finalizedDate
-        };
+            date: event.finalizedDate.date || "",
+            timeSlot: event.finalizedDate.timeSlot || ""
+          }
+        : { date: "", timeSlot: "" };
 
-      // Return the event details in the desired format
       return {
-        id: event._id,  // Event ID
+        id: event._id,
         name: event.name || "",
         location: event.location || "",
         description: event.description || "",
-        invitationCustomization: event.invitationCustomization || '',
+        invitationCustomization: event.invitationCustomization || "",
         type: event.type,
-        creatorProfilePicture: creatorProfilePictureUrl,  // Add live URL before profilePicture path
-        voteCount: event.votes.filter(vote => vote.voteType === 'yes').length, // Only count "yes" votes
-        votersProfilePictures: event.votes
-          .filter(vote => vote.voteType === 'yes') // Filter "yes" votes
-          .map(vote => ({
-            userId: vote.user?._id,
-            profilePicture: vote.user?.profilePicture ? `${process.env.LIVE_URL}/${vote.user.profilePicture}` : ""
-          })),
-        finalizedDate: finalizedDate || '', // Use the processed finalizedDate
+        creatorProfilePicture: creatorProfilePictureUrl,
+        voteCount: event.votes.filter(vote => vote.voteType === "yes").length,
+        votersProfilePictures: Array.from(
+          new Map(
+            event.votes
+              .filter(vote => vote.voteType === "yes" && vote.user?.profilePicture)
+              .map(vote => [
+                vote.user._id.toString(),
+                {
+                  userId: vote.user._id,
+                  profilePicture: `${process.env.LIVE_URL}/${vote.user.profilePicture}`
+                }
+              ])
+          ).values()
+        ), // Unique voters across whole event
+        finalizedDate
       };
     });
 
