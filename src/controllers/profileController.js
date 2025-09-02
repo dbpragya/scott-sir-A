@@ -342,15 +342,35 @@ exports.updateChatNotifications = async (req, res) => {
 
 exports.getPlan = async (req, res) => {
   try {
-    const plan = await SubscriptionPlan.findOne().select('-__v'); // Exclude __v
+    const userId = req.user.id; // Logged-in user's ID
+
+    // Find user with subscription
+    const user = await User.findById(userId).select('subscription');
+    if (!user || !user.subscription) {
+      return res.status(404).json({ status: false, message: 'No subscription found for this user' });
+    }
+
+    // Fetch full subscription plan using planId
+    const plan = await SubscriptionPlan.findById(user.subscription.planId).select('-__v');
     if (!plan) {
       return res.status(404).json({ status: false, message: 'Subscription plan not found' });
     }
-    return res.status(200).json({ status: true, message: 'Plan fetched successfully', data: plan });
+
+    return res.status(200).json({ 
+      status: true, 
+      message: 'Plan fetched successfully', 
+      data: { 
+        ...plan.toObject(), 
+        isActive: user.subscription.status === 'active',  // ✅ boolean instead of string
+        expiryDate: user.subscription.expiryDate 
+      } 
+    });
   } catch (error) {
     res.status(500).json({ status: false, message: 'Server error, please try again later.' });
   }
 };
+
+
 
 
 exports.purchasePlan = async (req, res) => {
@@ -375,36 +395,49 @@ exports.purchasePlan = async (req, res) => {
     const now = new Date();
     let expiryDate = new Date(now);
 
-    switch (plan.duration) {
-      case 'day':
-        expiryDate.setUTCDate(expiryDate.getUTCDate() + 1);
-        break;
-      case 'week':
-        expiryDate.setUTCDate(expiryDate.getUTCDate() + 7);
-        break;
-      case 'month':
-        expiryDate.setUTCMonth(expiryDate.getUTCMonth() + 1);
-        break;
-      case 'year':
-        expiryDate.setUTCFullYear(expiryDate.getUTCFullYear() + 1);
-        break;
-      default:
-        expiryDate.setUTCFullYear(expiryDate.getUTCFullYear() + 1);
-    }
+    // Function to add plan duration
+    const addDuration = (baseDate) => {
+      let newDate = new Date(baseDate);
+      switch (plan.duration) {
+        case 'day':
+          newDate.setUTCDate(newDate.getUTCDate() + 1);
+          break;
+        case 'week':
+          newDate.setUTCDate(newDate.getUTCDate() + 7);
+          break;
+        case 'month':
+          newDate.setUTCMonth(newDate.getUTCMonth() + 1);
+          break;
+        case 'year':
+          newDate.setUTCFullYear(newDate.getUTCFullYear() + 1);
+          break;
+        default:
+          newDate.setUTCFullYear(newDate.getUTCFullYear() + 1);
+      }
+      return newDate;
+    };
 
+    // Case 1: User has an active subscription
     if (
       user.subscription &&
       user.subscription.status === 'active' &&
       user.subscription.expiryDate &&
       new Date(user.subscription.expiryDate) > now
     ) {
-      if (new Date(user.subscription.expiryDate) < expiryDate) {
-        user.subscription.expiryDate = expiryDate;
-        await user.save();
-        return res.status(200).json({ status: true, message: 'Subscription extended', data: user.subscription });
-      }
-      return res.status(200).json({ status: true, message: 'Subscription already active', data: user.subscription });
+      // Extend from current expiry
+      user.subscription.expiryDate = addDuration(new Date(user.subscription.expiryDate));
+      user.subscription.paymentId = paymentId;
+
+      await user.save();
+      return res.status(200).json({
+        status: true,
+        message: 'Subscription extended',
+        subscription: user.subscription,
+      });
     }
+
+    // Case 2: No active subscription (start fresh from now)
+    expiryDate = addDuration(now);
 
     user.subscription = {
       planId: plan._id,
@@ -416,14 +449,16 @@ exports.purchasePlan = async (req, res) => {
 
     await user.save();
 
-    return res.status(201).json({ status: true, message: 'Subscription activated', subscription: user.subscription });
+    return res.status(201).json({
+      status: true,
+      message: 'Subscription activated',
+      subscription: user.subscription,
+    });
   } catch (error) {
     console.error('Error in purchasePlan:', error);
     return res.status(500).json({ status: false, message: 'Server error' });
   }
 };
-
-
 
 
 
