@@ -27,17 +27,17 @@ exports.createEvent = async (req, res) => {
     // Check subscription status
     const now = new Date();
     const subscription = user.subscription;
-    const hasPremium = subscription && 
-      subscription.status === 'active' && 
+    const hasPremium = subscription &&
+      subscription.status === 'active' &&
       new Date(subscription.expiryDate) > now;
 
     // Check if user already has an event if subscription is not active
     if (!hasPremium) {
       const existingEvent = await Event.findOne({ createdBy: userId });
       if (existingEvent) {
-        return res.status(400).json({ 
-          status: false, 
-          message: "You cannot create more than one event. Please upgrade your subscription." 
+        return res.status(400).json({
+          status: false,
+          message: "You cannot create more than one event. Please upgrade your subscription."
         });
       }
     }
@@ -175,9 +175,9 @@ exports.getAllEvents = async (req, res) => {
 
       const finalizedDate = event.finalizedDate
         ? {
-            date: event.finalizedDate.date || "",
-            timeSlot: event.finalizedDate.timeSlot || ""
-          }
+          date: event.finalizedDate.date || "",
+          timeSlot: event.finalizedDate.timeSlot || ""
+        }
         : { date: "", timeSlot: "" };
 
       return {
@@ -222,7 +222,9 @@ exports.getEventById = async (req, res) => {
     const event = await Event.findById(req.params.eventId)
       .populate({ path: 'invitedUsers', select: 'profilePicture _id' })
       .populate({ path: 'votes.user', select: 'profilePicture _id' })
-      .populate({ path: 'createdBy', select: 'first_name' });
+      .populate({ path: 'createdBy', select: 'first_name' })
+        .populate({ path: 'votes.user', select: 'profilePicture first_name last_name _id' })
+
 
     if (!event) {
       console.error('Event not found');
@@ -230,8 +232,8 @@ exports.getEventById = async (req, res) => {
     }
 
     const group = await Group.findOne({ eventId: req.params.eventId })
-      .populate({ path: 'eventId', select: '_id' }) 
-      .select('_id');  
+      .populate({ path: 'eventId', select: '_id' })
+      .select('_id');
     const formatWeekdayDate = (dateStr) => {
       const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
       const d = new Date(dateStr);
@@ -307,7 +309,8 @@ exports.getEventById = async (req, res) => {
       if (vote.user && vote.voteType === 'yes' && vote.user.profilePicture) {
         votesByDateAndTimeSlotMap[voteKey].votersProfilePictures.push({
           userId: vote.user._id,
-          profilePicture: `${process.env.LIVE_URL}/${vote.user.profilePicture}`
+          profilePicture: `${process.env.LIVE_URL}/${vote.user.profilePicture}`,
+          username: `${vote.user.first_name || ""} ${vote.user.last_name || ""}`.trim() 
         });
       }
 
@@ -788,6 +791,8 @@ exports.getInvitedEvents = async (req, res) => {
       invitedUsers: userId,
       createdBy: { $ne: userId },
     })
+      .sort({ createdAt: -1 }) // ✅ add this line to get newest events on top
+
       .populate({
         path: "createdBy",
         select: "first_name profilePicture",
@@ -861,13 +866,13 @@ exports.getInvitedEvents = async (req, res) => {
 
       const finalizedDate = event.finalizedDate
         ? {
-            date: event.finalizedDate.date || "",
-            timeSlot: event.finalizedDate.timeSlot || ""
-          }
+          date: event.finalizedDate.date || "",
+          timeSlot: event.finalizedDate.timeSlot || ""
+        }
         : {
-            date: "",
-            timeSlot: ""
-          };
+          date: "",
+          timeSlot: ""
+        };
 
       const yesVotes = event.votes.filter(vote => vote.voteType === "yes");
 
