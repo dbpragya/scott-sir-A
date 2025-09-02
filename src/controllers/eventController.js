@@ -223,7 +223,9 @@ exports.getEventById = async (req, res) => {
       .populate({ path: 'invitedUsers', select: 'profilePicture _id' })
       .populate({ path: 'votes.user', select: 'profilePicture _id' })
       .populate({ path: 'createdBy', select: 'first_name' })
-        .populate({ path: 'votes.user', select: 'profilePicture first_name last_name _id' })
+      .populate({ path: 'votes.user', select: 'profilePicture first_name last_name _id' })
+      .populate({ path: 'invitedUsers', select: 'profilePicture _id first_name last_name' })
+
 
 
     if (!event) {
@@ -310,7 +312,7 @@ exports.getEventById = async (req, res) => {
         votesByDateAndTimeSlotMap[voteKey].votersProfilePictures.push({
           userId: vote.user._id,
           profilePicture: `${process.env.LIVE_URL}/${vote.user.profilePicture}`,
-          username: `${vote.user.first_name || ""} ${vote.user.last_name || ""}`.trim() 
+          // username: `${vote.user.first_name || ""} ${vote.user.last_name || ""}`.trim() 
         });
       }
 
@@ -352,7 +354,8 @@ exports.getEventById = async (req, res) => {
 
     const invitedUsersProfilePics = event.invitedUsers.map(u => ({
       userId: u._id,
-      profilePicture: u.profilePicture ? `${process.env.LIVE_URL}/${u.profilePicture}` : ''
+      profilePicture: u.profilePicture ? `${process.env.LIVE_URL}/${u.profilePicture}` : '',
+      username: `${u.first_name || ""} ${u.last_name || ""}`.trim() // ✅ add username
     }));
 
     const invitationCustomization = event.invitationCustomization || { premiumTheme: "Theme1" };
@@ -791,7 +794,7 @@ exports.getInvitedEvents = async (req, res) => {
       invitedUsers: userId,
       createdBy: { $ne: userId },
     })
-      .sort({ createdAt: -1 }) // ✅ add this line to get newest events on top
+      .sort({ createdAt: -1 }) 
 
       .populate({
         path: "createdBy",
