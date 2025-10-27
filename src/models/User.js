@@ -12,7 +12,7 @@ const UserSchema = new mongoose.Schema({
     type: String,
     default: `uploads/image%20(5).png`  
   },
-    otp: { type: String, default: null },
+  otp: { type: String, default: null },
   otpExpiry: { type: Date, default: null },
   deviceTokens: { type: [String], default: [] },
   isVerify: { type: Boolean, default: false },

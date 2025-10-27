@@ -1,7 +1,7 @@
 const nodemailer = require("nodemailer");
 
-const EMAIL = "dbanmol.j@gmail.com";
-const APP_PASSWORD = "sgxt ivbf hcsv mlxv".replace(/\s/g, "");
+const EMAIL = process.env.SMTP_EMAIL || "";
+const APP_PASSWORD = process.env.SMTP_PASSWORD || "";
 
 const transporter = nodemailer.createTransport({
   service: "gmail",
@@ -12,10 +12,6 @@ const transporter = nodemailer.createTransport({
 });
 
 async function sendEmail({ to, subject, text }) {
-  console.log("Sending email with the following details:");
-  console.log("To:", to);
-  console.log("Subject:", subject);
-  console.log("Text:", text);
 
   if (!to) {
     console.error("Error: No recipient email provided");

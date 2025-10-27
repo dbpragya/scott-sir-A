@@ -56,6 +56,13 @@ const createEventValidation = [
     .optional()
     .isIn(["Lavender", "Make blue", "sku blue", "spicy red", "summer", "night light"])
     .withMessage("Invalid premiumTheme value"),
+
+
+    body("eventType")
+    .notEmpty()
+    .withMessage("Event type is required")
+    .isIn(["Public", "Private"])
+    .withMessage("Event type must be either 'Public' or 'Private'"),
 ];
 
 const voteOnEventValidation = [

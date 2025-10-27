@@ -4,6 +4,10 @@ const eventSchema = new mongoose.Schema({
   name: { type: String, required: true },
   location: String,
   description: String,
+  eventType: {
+    type: String,
+    enum: ["Public", "Private"],
+  },
   votingTime: {
     type: String,
     enum: ["24hrs", "48hrs"],

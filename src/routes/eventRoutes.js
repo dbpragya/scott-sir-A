@@ -10,52 +10,26 @@ const {
   getInvitedEvents,
   getInvitedEventDetailsForVoting,
   getVotersByDate,
-  finalizeEventDate
+  finalizeEventDate,
+  updateEvent,
+  deleteEvent
 } = require("../controllers/eventController");
 
 const { createEventValidation, voteOnEventValidation, finalizeEventDateValidation } = require("../validators/validation");
 const { validationResult } = require("express-validator");
-
 const authenticateUser = require("../middleware/authmiddleware");
 
-router.post(
-  "/create",
-  authenticateUser,
-  createEventValidation,
-  (req, res, next) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        status: false,
-        message: errors.array()[0].msg,
-      });
-    }
-    next();
-  },
-  createEvent
-);
-
+router.post( "/create",authenticateUser,createEventValidation,createEvent);
 router.get('/invite', authenticateUser, handleInviteLink);
-
 router.get("/my-invites", authenticateUser, getInvitedEvents);
-
 router.post("/accept-invite", authenticateUser, AcceptInvite);
-
-router.post('/vote/:eventId', authenticateUser, voteOnEventValidation, (req, res, next) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({
-      status: false,
-      message: errors.array()[0].msg,
-    });
-  }
-  next();
-}, voteOnEvent);
-
-
+router.post('/vote/:eventId', authenticateUser, voteOnEventValidation,voteOnEvent);
 router.get("/", authenticateUser, getAllEvents);
+router.get("/:eventId", authenticateUser, getEventById); // phase-2
+router.get("/details/:eventId", authenticateUser, getEventById); 
 
-router.get("/details/:eventId", authenticateUser, getEventById);
+router.put("/:eventId", authenticateUser, updateEvent); // phase-2
+router.delete("/:eventId", authenticateUser, deleteEvent); // phase-2
 
 router.get('/vote-info/:eventId', authenticateUser, getInvitedEventDetailsForVoting);
 

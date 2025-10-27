@@ -7,6 +7,11 @@ const sendEmail = require("../utils/sendEmail");
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 
+// Generate random OTP function
+function generateOTP() {
+  return Math.floor(1000 + Math.random() * 9000).toString(); // Generates 4-digit OTP
+}
+
 
 // Validation Done
 const signup = async (req, res) => {
@@ -20,8 +25,6 @@ const signup = async (req, res) => {
 
   try {
     const { first_name, last_name, email, password, confirmPassword, deviceToken } = req.body;
-
-    console.log("Received data:", { first_name, last_name, email, password, confirmPassword, deviceToken }); // Log received data
 
     if (password !== confirmPassword) {
       return res.status(400).json({
@@ -37,49 +40,35 @@ const signup = async (req, res) => {
         message: "User already exists with this email.",
       });
     }
-    
+
     const hashedPassword = await bcrypt.hash(password, 10);
+    const otp = generateOTP(); // Generate random OTP
+    const hashedOtp = await bcrypt.hash(otp, 10);
+    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
 
-    // OTP generation for testing purposes, will use a static value "0000"
-    const otp = "0000";
-    const hashedOtp = await bcrypt.hash(otp, 10); // Hash the OTP before saving it
-    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // Set expiry time
 
-    // Log before saving the new user
-    console.log("Creating new user with the following data:", {
+
+    const newUser = new User({
       first_name,
       last_name,
       email,
       otp: hashedOtp,
       otpExpiry,
       password: hashedPassword,
-      deviceTokens: [deviceToken] // Log the deviceToken being saved
+      deviceTokens: [deviceToken],
     });
-
-    const newUser = new User({
-      first_name,
-      last_name,
-      email,
-      otp: hashedOtp, // Save the hashed OTP
-      otpExpiry,
-      password: hashedPassword,
-      deviceTokens: [deviceToken], // Ensure the deviceTokens is saved as an array
-    });
-
-    // Log the newUser object to verify if deviceTokens is being set correctly
-    console.log("New user before saving:", newUser);
-
     await newUser.save();
+    try {
+      await sendEmail({
+        to: newUser.email,
+        subject: "Confirm your email",
+        text: `Your OTP is: ${otp}`,
+      });
+      console.log(`Email sent successfully to: ${newUser.email}`);
+    } catch (emailError) {
+      console.error(`Failed to send email to ${newUser.email}:`, emailError);
 
-    // Log after user is saved
-    console.log("User saved successfully.");
-
-    await sendEmail({
-      to: newUser.email,
-      subject: "Confirm your email",
-      text: `Your OTP is: ${otp}`,
-    });
-
+    }
     return res.status(200).json({
       status: true,
       message: "Please verify your email to continue.",
@@ -91,9 +80,6 @@ const signup = async (req, res) => {
       .json({ status: false, message: "Internal Server Error!" });
   }
 };
-
-
-
 
 const verifyOtp = async (req, res) => {
   const errors = validationResult(req);
@@ -134,7 +120,7 @@ const verifyOtp = async (req, res) => {
       { expiresIn: "30d" }
     );
 
-       const profilePictureUrl = user.profilePicture
+    const profilePictureUrl = user.profilePicture
       ? `${process.env.LIVE_URL}/${user.profilePicture.replace(/\\/g, '/')}`
       : '';
 
@@ -155,7 +141,7 @@ const verifyOtp = async (req, res) => {
     console.error("Create Event Error:", error);
     return res.status(500).json({ status: false, message: "Server error" });
   }
-  }
+}
 
 
 
@@ -233,22 +219,22 @@ const resendOtp = async (req, res) => {
       return res.status(404).json({ status: false, message: "User not found" });
     }
 
-    // Generate a new OTP (hardcoded as "0000" for testing purposes)
-    const otp = "0000"; // Hardcoded for testing
-    const hashedOtp = await bcrypt.hash(otp, 10); // Hash the OTP before saving
-    user.otp = hashedOtp; // Save the hashed OTP
-    user.otpExpiry = Date.now() + 10 * 60 * 1000; // OTP expiry time (10 minutes)
+    // Generate a new OTP
+    const otp = generateOTP();
+    const hashedOtp = await bcrypt.hash(otp, 10);
+    user.otp = hashedOtp;
+    user.otpExpiry = Date.now() + 10 * 60 * 1000;
     await user.save();
 
-    // Send the OTP to the user via email
+
     await sendEmail({
       to: user.email,
       subject: "Password Reset OTP",
-      text: `Your OTP is: ${otp}`, // Send the plain OTP in the email for testing
+      text: `Your OTP is: ${otp}`,
     });
 
     return res.status(200).json({ status: true, message: "OTP resent successfully" });
-  }catch (error) {
+  } catch (error) {
     console.error("Create Event Error:", error);
     return res.status(500).json({ status: false, message: "Server error" });
   }
@@ -270,7 +256,7 @@ const login = async (req, res) => {
     });
   }
 
-  const { email, password, deviceToken } = req.body; // Accept deviceToken in request body
+  const { email, password, deviceToken } = req.body;
 
   try {
     const user = await User.findOne({ email });
@@ -278,12 +264,11 @@ const login = async (req, res) => {
       return res.status(400).json({ status: false, message: "Invalid email or password" });
     }
 
-    // Check if the user is verified first
     if (!user.isVerify) {
-      // If the user is not verified, generate OTP and send email
-      const otp = "0000"; // This can be generated dynamically
-      const hashedOtp = await bcrypt.hash(otp, 10); // Hash the OTP before saving
-      const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // Set expiry time
+
+      const otp = generateOTP();
+      const hashedOtp = await bcrypt.hash(otp, 10);
+      const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
 
       user.otp = hashedOtp;  // Save the hashed OTP
       user.otpExpiry = otpExpiry; // Save OTP expiry time
@@ -296,7 +281,7 @@ const login = async (req, res) => {
         text: `Your OTP is: ${otp}`,
       });
 
-      // Respond with a message about email verification along with user data
+
       return res.status(200).json({
         status: true,
         message: "Please verify your email to continue.",
@@ -311,7 +296,6 @@ const login = async (req, res) => {
       });
     }
 
-    // Password check only after the user is verified
     if (typeof user.password !== "string") {
       return res.status(500).json({ status: false, message: "Stored password is invalid." });
     }
@@ -321,14 +305,12 @@ const login = async (req, res) => {
       return res.status(400).json({ status: false, message: "Invalid password" });
     }
 
-    // Ensure deviceTokens is initialized as an array if it is undefined
     if (!user.deviceTokens) {
       user.deviceTokens = [];
     }
 
-    // If deviceToken is provided, save it in the deviceTokens array
+
     if (deviceToken) {
-      // Check if deviceToken already exists in the array to avoid duplicates
       if (!user.deviceTokens.includes(deviceToken)) {
         user.deviceTokens.push(deviceToken);
         await user.save();
@@ -417,32 +399,29 @@ const forgotPassword = async (req, res, next) => {
       return res.status(404).json({ status: false, message: "User not found" });
     }
 
-    // Generate OTP (mocked as "0000")
-    const otp = "0000";
+    // Generate OTP
+    const otp = generateOTP();
     const hashedOtp = await bcrypt.hash(otp, 10);
     user.otp = hashedOtp;
-    user.otpExpiry = Date.now() + 10 * 60 * 1000; // 10 mins expiry
+    user.otpExpiry = Date.now() + 10 * 60 * 1000;
     user.isOtpVerified = false;
     await user.save();
 
-    // Validate that email is a valid format before sending
+
     if (!/\S+@\S+\.\S+/.test(email)) {
       console.error("Error: Invalid email format:", email);
       return res.status(400).json({ status: false, message: "Invalid email format" });
     }
-
-    // Log the details before calling sendEmail
     console.log("Sending OTP to email:", email);
 
-    // Correcting the variable to use 'user' instead of 'newUser'
     await sendEmail({
-      to: user.email, // Use 'user' here instead of 'newUser'
+      to: user.email,
       subject: "Confirm your email",
       text: `Your OTP is: ${otp}`,
     });
 
     return res.json({ status: true, message: "OTP sent to email." });
-  }  catch (error) {
+  } catch (error) {
     console.error("Create Event Error:", error);
     return res.status(500).json({ status: false, message: "Server error" });
   }
@@ -466,7 +445,7 @@ const verifyResetPassword = async (req, res, next) => {
 
     const isMatch = await bcrypt.compare(otp, user.otp);
     if (!isMatch) {
-      return res.status(400).json({ status: false, message: "Incorrect OTP." });
+      return res.status(400).json({ status: false, message: "Invalid OTP." });
     }
     user.isOtpVerified = true;
     await user.save();
@@ -498,7 +477,7 @@ const resetPassword = async (req, res, next) => {
     user.isOtpVerified = false;
     await user.save();
     return res.json({ status: true, message: "Password reset successfully." });
-  }  catch (error) {
+  } catch (error) {
     console.error("Create Event Error:", error);
     return res.status(500).json({ status: false, message: "Server error" });
   }
