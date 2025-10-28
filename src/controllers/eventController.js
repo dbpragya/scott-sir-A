@@ -122,6 +122,40 @@ exports.createEvent = async (req, res) => {
   }
 };
 
+exports.EditEvent =async(req,res) =>{
+  try{
+
+    const { eventId } = req.params;
+
+
+    const event = await Event.findById(eventId);
+    if (!event) {
+      return res.status(404).json({ status: false, message: "Event not found" });
+    }
+    
+    formattedEvent = {
+      id: event._id,
+      name: event.name,
+      description: event.description,
+
+    }
+    return res.status(200).json({
+      status: true,
+      message: "Event fetched successfully",
+      data: formattedEvent
+    });
+    
+
+  }catch(error){
+    console.error("Edit Event Error:", error);
+    return res.status(500).json({ 
+      status: false, 
+      message: "Server error"
+     });
+  }
+
+}
+
 exports.updateEvent = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -234,7 +268,7 @@ exports.getAllEvents = async (req, res) => {
       .populate({ path: "votes.user", select: "profilePicture _id voteType" });
 
     if (events.length === 0) {
-      return res.status(404).json({ status: false, message: "No events found" });
+      return res.status(404).json({ status: false, message: "No events found for this user" });
     }
 
     const modifiedEvents = events.map(event => {
@@ -499,7 +533,6 @@ exports.getEventById = async (req, res) => {
       groupId: group?._id || ''
     };
 
-    console.log('Event Details:', eventDetails);
 
     res.status(200).json({ status: true, message: 'Event Fetched Successfully', data: eventDetails });
   } catch (error) {
@@ -1218,3 +1251,267 @@ exports.finalizeEventDate = async (req, res) => {
   }
 };
 
+exports.getPublicEvents = async (req, res) => {
+  try {
+    const events = await Event.find({ eventType: "Public" })
+      .sort({ createdAt: -1 })
+      .populate({ path: "createdBy", select: "first_name profilePicture" })
+      .populate({ path: "votes.user", select: "profilePicture _id voteType" });
+
+    if (events.length === 0) {
+      return res.status(404).json({ status: false, message: "No public events found" });
+    }
+
+    const modifiedEvents = events.map(event => {
+      const votesByDateMap = {};
+
+      event.votes.forEach(vote => {
+        if (!vote.date || vote.voteType !== "yes") return;
+
+        const voteDateStr = new Date(vote.date).toISOString().split("T")[0];
+
+        if (!votesByDateMap[voteDateStr]) {
+          votesByDateMap[voteDateStr] = {
+            count: 0,
+            votersProfilePictures: new Map() // Use Map to keep unique users
+          };
+        }
+
+        // Increment only for "yes" votes
+        votesByDateMap[voteDateStr].count++;
+
+        if (vote.user && vote.user.profilePicture) {
+          votesByDateMap[voteDateStr].votersProfilePictures.set(
+            vote.user._id.toString(),
+            {
+              userId: vote.user._id,
+              profilePicture: `${process.env.LIVE_URL}/${vote.user.profilePicture}`
+            }
+          );
+        }
+      });
+
+      const datesWithVotes = event.dates.map(d => {
+        const eventDateStr = new Date(d.date).toISOString().split("T")[0];
+
+        return {
+          date: d.date,
+          timeSlot: d.timeSlot || "",
+          _id: d._id,
+          voteCount: votesByDateMap[eventDateStr]?.count || 0,
+          votersProfilePictures: Array.from(
+            votesByDateMap[eventDateStr]?.votersProfilePictures?.values() || []
+          ) // Convert Map values to array
+        };
+      });
+
+      const creatorProfilePictureUrl = {
+        name: event.createdBy?.first_name || "",
+        profilePicture: event.createdBy?.profilePicture
+          ? `${process.env.LIVE_URL}/${event.createdBy.profilePicture.replace(/\\/g, "/")}`
+          : ""
+      };
+
+      const finalizedDate = event.finalizedDate
+        ? {
+          date: event.finalizedDate.date || "",
+          timeSlot: event.finalizedDate.timeSlot || ""
+        }
+        : { date: "", timeSlot: "" };
+
+      return {
+        id: event._id,
+        name: event.name || "",
+        location: event.location || "",
+        description: event.description || "",
+        invitationCustomization: event.invitationCustomization || "",
+        type: event.type,
+        eventType: event.eventType || "",
+        creatorProfilePicture: creatorProfilePictureUrl,
+        voteCount: event.votes.filter(vote => vote.voteType === "yes").length,
+        votersProfilePictures: Array.from(
+          new Map(
+            event.votes
+              .filter(vote => vote.voteType === "yes" && vote.user?.profilePicture)
+              .map(vote => [
+                vote.user._id.toString(),
+                {
+                  userId: vote.user._id,
+                  profilePicture: `${process.env.LIVE_URL}/${vote.user.profilePicture}`
+                }
+              ])
+          ).values()
+        ),
+        finalizedDate,
+      
+      };
+    });
+
+    res.status(200).json({
+      status: true,
+      message: "Public events fetched successfully",
+      data: modifiedEvents
+    });
+  } catch (error) {
+    console.error("Get Public Events Error:", error);
+    res.status(500).json({ status: false, message: "Server error" });
+  }
+}
+
+
+exports.getPublicEventDetails = async(req,res) =>{
+  try{
+    const { eventId } = req.params;
+    const event = await Event.findById(eventId)
+      .populate({ path: 'invitedUsers', select: 'profilePicture _id first_name last_name' })
+      .populate({ path: 'votes.user', select: 'profilePicture first_name last_name _id' })
+      .populate({ path: 'createdBy', select: 'first_name profilePicture' });
+
+    if(!event){
+      return res.status(404).json({ status: false, message: "Event not found" });
+    }
+
+    const group = await Group.findOne({ eventId: eventId })
+      .populate({ path: 'eventId', select: '_id' })
+      .select('_id');
+
+    const formatWeekdayDate = (dateStr) => {
+      const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+      const d = new Date(dateStr);
+      const weekday = days[d.getUTCDay()];
+
+      const year = d.getUTCFullYear();
+      const month = String(d.getUTCMonth() + 1).padStart(2, '0');
+      const day = String(d.getUTCDate()).padStart(2, '0');
+      return `${weekday} ${year}-${month}-${day}`;
+    };
+
+    let remainingTimeMs = 0;
+    let remainingTimeText = "Voting ended";
+
+    if (event.votingTime && event.createdAt) {
+      const match = event.votingTime.match(/^(\d+)\s*hrs?$/i);
+      if (match) {
+        const hoursAllowed = parseInt(match[1], 10);
+        const votingEnd = new Date(event.createdAt.getTime() + hoursAllowed * 60 * 60 * 1000);
+        const now = new Date();
+        remainingTimeMs = votingEnd - now > 0 ? votingEnd - now : 0;
+
+        if (remainingTimeMs > 0) {
+          const hoursRemaining = Math.floor(remainingTimeMs / (1000 * 60 * 60));
+          const minutesRemaining = Math.floor((remainingTimeMs % (1000 * 60 * 60)) / (1000 * 60));
+
+          if (hoursRemaining > 0) {
+            remainingTimeText = `${hoursRemaining} h`;
+            if (minutesRemaining > 0) {
+              remainingTimeText += ` and ${minutesRemaining} min`;
+            }
+          } else if (minutesRemaining > 0) {
+            remainingTimeText = `${minutesRemaining} min`;
+          } else {
+            remainingTimeText = "Less than a minute remaining";
+          }
+
+          remainingTimeText += " remaining";
+        }
+      }
+    }
+
+    if (event.isFinalized) {
+      remainingTimeText = "Voting is no longer available — the event is already final.";
+    }
+
+    const votesByDateAndTimeSlotMap = {};
+
+    event.votes.forEach(vote => {
+      if (!vote.date || !vote.timeSlot) return;
+
+      const voteDateStr = new Date(vote.date).toISOString().split('T')[0]; 
+      const voteTimeSlot = vote.timeSlot; 
+
+      const voteKey = `${voteDateStr}-${voteTimeSlot}`;
+
+      if (!votesByDateAndTimeSlotMap[voteKey]) {
+        votesByDateAndTimeSlotMap[voteKey] = {
+          count: 0,
+          votersProfilePictures: [],
+          userVoteTypes: {} 
+        };
+      }
+
+      if (vote.voteType === 'yes') {
+        votesByDateAndTimeSlotMap[voteKey].count++; 
+      }
+
+      if (vote.user && vote.voteType === 'yes' && vote.user.profilePicture) {
+        votesByDateAndTimeSlotMap[voteKey].votersProfilePictures.push({
+          userId: vote.user._id,
+          profilePicture: `${process.env.LIVE_URL}/${vote.user.profilePicture}`,
+        });
+      }
+
+      if (vote.user) {
+        votesByDateAndTimeSlotMap[voteKey].userVoteTypes[vote.user._id.toString()] = vote.voteType || "";
+      }
+    });
+
+    const datesWithVotes = event.dates.map(d => {
+      const eventDateStr = new Date(d.date).toISOString().split('T')[0];
+
+      const timeSlots = [d.timeSlot]; 
+      const dateVotes = timeSlots.map(timeSlot => {
+        const voteKey = `${eventDateStr}-${timeSlot}`;
+        const thisDateVotes = votesByDateAndTimeSlotMap[voteKey] || {};
+
+        return {
+          date: formatWeekdayDate(d.date),
+          timeSlot: timeSlot,
+          voteCount: thisDateVotes.count || 0,
+          voteType: "", 
+          votersProfilePictures: thisDateVotes.votersProfilePictures || [],
+        };
+      });
+
+      return dateVotes;  
+    }).flat(); 
+
+    const invitedUsersProfilePics = event.invitedUsers.map(u => ({
+      userId: u._id,
+      profilePicture: u.profilePicture ? `${process.env.LIVE_URL}/${u.profilePicture}` : '',
+      username: `${u.first_name || ""} ${u.last_name || ""}`.trim()
+    }));
+
+    const invitationCustomization = event.invitationCustomization || { premiumTheme: "Theme1" };
+
+    const isFinalized = event.isFinalized || false;
+    const finalizedData = event.finalizedDate ? {
+      date: event.finalizedDate.date || "",
+      timeSlot: event.finalizedDate.timeSlot || ""
+    } : {
+      date: "",
+      timeSlot: "",
+    };
+
+    const eventDetails = {
+      id: event._id,
+      name: event.name || "",
+      location: event.location || "",
+      eventType: event.eventType || "",
+      description: event.description || "",
+      invitationCustomization: invitationCustomization,
+      invitedUsersCount: event.invitedUsers.length || 0,
+      invitedUsersProfilePics: invitedUsersProfilePics || [],
+      remainingVotingTime: remainingTimeText || "Voting ended",
+      dates: datesWithVotes || [],
+      isFinalized: isFinalized,
+      finalizedDate: finalizedData || '',
+      type: event.eventType ||"", 
+      groupId: group?._id || ''
+    };
+
+    res.status(200).json({ status: true, message: 'Event Fetched Successfully', data: eventDetails });
+  }catch(error){
+    console.error("Get Public Event Details Error:", error);
+    return res.status(500).json({ status: false, message: "Server error" });
+  }
+}
