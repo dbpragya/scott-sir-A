@@ -326,13 +326,13 @@ exports.updateChatNotifications = async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
     if (!user) {
-      return res.status(404).json({ status: false, message: 'User not found.' });
+      return res.status(404).json({ status: false, message: 'User not found.'});
     }
 
     user.chatNotifications = chatNotifications;
     await user.save();
 
-    return res.status(200).json({ status: true, message: 'Chat notifications updated successfully.' });
+    return res.status(200).json({ status: true, message: 'Chat notifications updated successfully.'});
   } catch (error) {
     console.error(error);
     return res.status(500).json({ status: false, message: 'Server error, please try again later.' });
@@ -369,9 +369,6 @@ exports.getPlan = async (req, res) => {
     res.status(500).json({ status: false, message: 'Server error, please try again later.' });
   }
 };
-
-
-
 
 exports.purchasePlan = async (req, res) => {
   try {

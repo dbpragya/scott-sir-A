@@ -16,7 +16,7 @@ exports.createEvent = async (req, res) => {
     });
   }
   try {
-    const { name, location, description, votingTime, dates, invitationCustomization ,eventType} = req.body;
+    const { name, location, description, votingTime, dates, invitationCustomization, eventType } = req.body;
     const userId = req.user.id;
 
     // Validate required fields
@@ -78,15 +78,15 @@ exports.createEvent = async (req, res) => {
     // Save the event to MongoDB
     await newEvent.save();
 
-   
+
     const newGroup = new Group({
-      eventId: newEvent._id,  
-      members: [{ user: userId, role: "planner" }]  
+      eventId: newEvent._id,
+      members: [{ user: userId, role: "planner" }]
     });
 
     await newGroup.save();
 
-    newEvent.groupId = newEvent._id;  
+    newEvent.groupId = newEvent._id;
     await newEvent.save();
 
     await checkTopPlannerBadge(userId);
@@ -108,7 +108,7 @@ exports.createEvent = async (req, res) => {
       voteCount: newEvent.votes ? newEvent.votes.length : 0,
       votersProfilePictures: [],
       finalizedDate: { date: "", timeSlot: "" },
-      invitedUsersCount: newEvent.invitedUsers ? newEvent.invitedUsers.length : 0,  
+      invitedUsersCount: newEvent.invitedUsers ? newEvent.invitedUsers.length : 0,
     };
 
     return res.status(200).json({
@@ -122,8 +122,8 @@ exports.createEvent = async (req, res) => {
   }
 };
 
-exports.EditEvent =async(req,res) =>{
-  try{
+exports.EditEvent = async (req, res) => {
+  try {
 
     const { eventId } = req.params;
 
@@ -132,7 +132,7 @@ exports.EditEvent =async(req,res) =>{
     if (!event) {
       return res.status(404).json({ status: false, message: "Event not found" });
     }
-    
+
     formattedEvent = {
       id: event._id,
       name: event.name,
@@ -144,14 +144,14 @@ exports.EditEvent =async(req,res) =>{
       message: "Event fetched successfully",
       data: formattedEvent
     });
-    
 
-  }catch(error){
+
+  } catch (error) {
     console.error("Edit Event Error:", error);
-    return res.status(500).json({ 
-      status: false, 
+    return res.status(500).json({
+      status: false,
       message: "Server error"
-     });
+    });
   }
 
 }
@@ -172,26 +172,26 @@ exports.updateEvent = async (req, res) => {
 
     // Validate required fields
     if (!name || !description) {
-      return res.status(400).json({ 
-        status: false, 
-        message: "Name and description are required" 
+      return res.status(400).json({
+        status: false,
+        message: "Name and description are required"
       });
     }
 
     // Find the event
     const event = await Event.findById(eventId);
     if (!event) {
-      return res.status(404).json({ 
-        status: false, 
-        message: "Event not found" 
+      return res.status(404).json({
+        status: false,
+        message: "Event not found"
       });
     }
 
     // Check if user is the creator of the event
     if (event.createdBy.toString() !== userId) {
-      return res.status(403).json({ 
-        status: false, 
-        message: "You can only update events you created" 
+      return res.status(403).json({
+        status: false,
+        message: "You can only update events you created"
       });
     }
 
@@ -212,9 +212,9 @@ exports.updateEvent = async (req, res) => {
 
   } catch (error) {
     console.error("Update Event Error:", error);
-    res.status(500).json({ 
-      status: false, 
-      message: "Server error" 
+    res.status(500).json({
+      status: false,
+      message: "Server error"
     });
   }
 };
@@ -226,17 +226,17 @@ exports.deleteEvent = async (req, res) => {
 
     const event = await Event.findById(eventId);
     if (!event) {
-      return res.status(404).json({ 
-        status: false, 
-        message: "Event not found" 
+      return res.status(404).json({
+        status: false,
+        message: "Event not found"
       });
     }
 
     // Check if user is the creator of the event
     if (event.createdBy.toString() !== userId) {
-      return res.status(403).json({ 
-        status: false, 
-        message: "You can only delete events you created" 
+      return res.status(403).json({
+        status: false,
+        message: "You can only delete events you created"
       });
     }
 
@@ -250,9 +250,9 @@ exports.deleteEvent = async (req, res) => {
 
   } catch (error) {
     console.error("Delete Event Error:", error);
-    res.status(500).json({ 
-      status: false, 
-      message: "Server error" 
+    res.status(500).json({
+      status: false,
+      message: "Server error"
     });
   }
 };
@@ -350,7 +350,7 @@ exports.getAllEvents = async (req, res) => {
                 }
               ])
           ).values()
-        ), 
+        ),
         finalizedDate
       };
     });
@@ -437,8 +437,8 @@ exports.getEventById = async (req, res) => {
       console.log(`Processing vote: ${vote.user._id} - ${vote.voteType} on ${vote.date} for ${vote.timeSlot}`);
       if (!vote.date || !vote.timeSlot) return;
 
-      const voteDateStr = new Date(vote.date).toISOString().split('T')[0]; 
-      const voteTimeSlot = vote.timeSlot; 
+      const voteDateStr = new Date(vote.date).toISOString().split('T')[0];
+      const voteTimeSlot = vote.timeSlot;
 
       const voteKey = `${voteDateStr}-${voteTimeSlot}`;
 
@@ -446,12 +446,12 @@ exports.getEventById = async (req, res) => {
         votesByDateAndTimeSlotMap[voteKey] = {
           count: 0,
           votersProfilePictures: [],
-          userVoteTypes: {} 
+          userVoteTypes: {}
         };
       }
 
       if (vote.voteType === 'yes') {
-        votesByDateAndTimeSlotMap[voteKey].count++; 
+        votesByDateAndTimeSlotMap[voteKey].count++;
       }
 
       if (vote.user && vote.voteType === 'yes' && vote.user.profilePicture) {
@@ -472,27 +472,27 @@ exports.getEventById = async (req, res) => {
       const eventDateStr = new Date(d.date).toISOString().split('T')[0];
 
       // Ensure the time slot passed during event creation is included
-      const timeSlots = [d.timeSlot]; 
+      const timeSlots = [d.timeSlot];
       const dateVotes = timeSlots.map(timeSlot => {
         const voteKey = `${eventDateStr}-${timeSlot}`;
         const thisDateVotes = votesByDateAndTimeSlotMap[voteKey] || {};
 
-  
-        const currentUserVoteType = thisDateVotes.userVoteTypes?.[req.user.id] || ""; 
 
-      
+        const currentUserVoteType = thisDateVotes.userVoteTypes?.[req.user.id] || "";
+
+
 
         return {
           date: formatWeekdayDate(d.date),
           timeSlot: timeSlot,
           voteCount: thisDateVotes.count || 0,
-          voteType: currentUserVoteType, 
+          voteType: currentUserVoteType,
           votersProfilePictures: thisDateVotes.votersProfilePictures || [],
         };
       });
 
-      return dateVotes;  
-    }).flat(); 
+      return dateVotes;
+    }).flat();
 
 
     const invitedUsersProfilePics = event.invitedUsers.map(u => ({
@@ -828,108 +828,108 @@ exports.voteOnEvent = async (req, res) => {
       });
     }
 
-  // Check if the user is invited to vote on this event
-  if (!event.invitedUsers.some((user) => user.toString() === userId)) {
-    return res.status(403).json({
-      status: false,
-      message: "You are not invited to vote on this event.",
-    });
-  }
-
-  // Ensure selected date and timeslot are provided
-  if (!selectedDate || !selectedTimeSlot) {
-    return res.status(400).json({
-      status: false,
-      message: "Please select a date and time slot to vote.",
-    });
-  }
-
-  // Validate vote type
-  if (!voteType || !["yes", "no"].includes(voteType.toLowerCase())) {
-    return res.status(400).json({
-      status: false,
-      message: "Invalid vote type. Please use 'yes' or 'no'.",
-    });
-  }
-
-  // Extract and normalize the date part
-  const selectedDatePart = extractDatePart(selectedDate);
-  if (!selectedDatePart) {
-    return res.status(400).json({
-      status: false,
-      message: "Invalid selected date.",
-    });
-  }
-
-  // Find the matching event date
-  const validDateObj = event.dates.find((d) => {
-    const eventDatePart = extractDatePart(d.date);
-    return eventDatePart === selectedDatePart;
-  });
-
-  if (!validDateObj) {
-    return res.status(400).json({
-      status: false,
-      message: "Selected date is not valid for this event.",
-    });
-  }
-
-  // ✅ Check if the user has already voted for the same date and time slot (ignoring time part of the date)
-  const alreadyVoted = event.votes.some(
-    (vote) =>
-      vote.user.toString() === userId &&
-      extractDatePart(vote.date) === selectedDatePart &&  // Compare only the date part
-      vote.timeSlot === selectedTimeSlot
-  );
-
-  if (alreadyVoted) {
-    console.log("User has already voted for the same date and time slot.");
-    return res.status(400).json({
-      status: false,
-      message: "You have already voted for this time slot on the selected date.",
-    });
-  }
-
-  // ✅ Store the vote with the date and timeslot if no duplicate vote found
-  event.votes.push({
-    user: userId,
-    date: selectedDatePart,
-    voteType: voteType.toLowerCase(),
-    timeSlot: selectedTimeSlot,
-  });
-
-  // Save the event after updating the votes array
-  await event.save();
-
-  console.log("Updated votes:", event.votes);
-
-  // ✅ Add user to the group if not already added
-  let group = await Group.findOne({ eventId });
-  if (!group) {
-    group = await Group.create({
-      eventId,
-      members: [userId],
-    });
-  } else {
-    if (!group.members.some((m) => m.toString() === userId)) {
-      group.members.push(userId);
-      await group.save();
+    // Check if the user is invited to vote on this event
+    if (!event.invitedUsers.some((user) => user.toString() === userId)) {
+      return res.status(403).json({
+        status: false,
+        message: "You are not invited to vote on this event.",
+      });
     }
+
+    // Ensure selected date and timeslot are provided
+    if (!selectedDate || !selectedTimeSlot) {
+      return res.status(400).json({
+        status: false,
+        message: "Please select a date and time slot to vote.",
+      });
+    }
+
+    // Validate vote type
+    if (!voteType || !["yes", "no"].includes(voteType.toLowerCase())) {
+      return res.status(400).json({
+        status: false,
+        message: "Invalid vote type. Please use 'yes' or 'no'.",
+      });
+    }
+
+    // Extract and normalize the date part
+    const selectedDatePart = extractDatePart(selectedDate);
+    if (!selectedDatePart) {
+      return res.status(400).json({
+        status: false,
+        message: "Invalid selected date.",
+      });
+    }
+
+    // Find the matching event date
+    const validDateObj = event.dates.find((d) => {
+      const eventDatePart = extractDatePart(d.date);
+      return eventDatePart === selectedDatePart;
+    });
+
+    if (!validDateObj) {
+      return res.status(400).json({
+        status: false,
+        message: "Selected date is not valid for this event.",
+      });
+    }
+
+    // ✅ Check if the user has already voted for the same date and time slot (ignoring time part of the date)
+    const alreadyVoted = event.votes.some(
+      (vote) =>
+        vote.user.toString() === userId &&
+        extractDatePart(vote.date) === selectedDatePart &&  // Compare only the date part
+        vote.timeSlot === selectedTimeSlot
+    );
+
+    if (alreadyVoted) {
+      console.log("User has already voted for the same date and time slot.");
+      return res.status(400).json({
+        status: false,
+        message: "You have already voted for this time slot on the selected date.",
+      });
+    }
+
+    // ✅ Store the vote with the date and timeslot if no duplicate vote found
+    event.votes.push({
+      user: userId,
+      date: selectedDatePart,
+      voteType: voteType.toLowerCase(),
+      timeSlot: selectedTimeSlot,
+    });
+
+    // Save the event after updating the votes array
+    await event.save();
+
+    console.log("Updated votes:", event.votes);
+
+    // ✅ Add user to the group if not already added
+    let group = await Group.findOne({ eventId });
+    if (!group) {
+      group = await Group.create({
+        eventId,
+        members: [userId],
+      });
+    } else {
+      if (!group.members.some((m) => m.toString() === userId)) {
+        group.members.push(userId);
+        await group.save();
+      }
+    }
+
+    await checkSpeedyVoterBadge(userId);
+
+    res.status(200).json({
+      status: true,
+      message: "Vote submitted",
+    });
+  } catch (err) {
+    console.error("Vote Error:", err);
+    res.status(500).json({
+      status: false,
+      message: "Server error",
+    });
   }
-
-  await checkSpeedyVoterBadge(userId);
-
-   res.status(200).json({
-     status: true,
-     message: "Vote submitted",
-   });
- } catch (err) {
-   console.error("Vote Error:", err);
-   res.status(500).json({
-     status: false,
-     message: "Server error",
-   });
- }
 };
 
 
@@ -1163,7 +1163,7 @@ exports.getVotersByDate = async (req, res) => {
 exports.finalizeEventDate = async (req, res) => {
   try {
     const { eventId } = req.params;
-    const { selectedDate, selectedTimeSlot } = req.body; // Get both selectedDate and selectedTimeSlot
+    const { selectedDate, selectedTimeSlot } = req.body;
 
 
     if (!selectedDate || !selectedTimeSlot) {
@@ -1273,7 +1273,7 @@ exports.getPublicEvents = async (req, res) => {
         if (!votesByDateMap[voteDateStr]) {
           votesByDateMap[voteDateStr] = {
             count: 0,
-            votersProfilePictures: new Map() // Use Map to keep unique users
+            votersProfilePictures: new Map() 
           };
         }
 
@@ -1343,7 +1343,7 @@ exports.getPublicEvents = async (req, res) => {
           ).values()
         ),
         finalizedDate,
-      
+
       };
     });
 
@@ -1359,15 +1359,15 @@ exports.getPublicEvents = async (req, res) => {
 }
 
 
-exports.getPublicEventDetails = async(req,res) =>{
-  try{
+exports.getPublicEventDetails = async (req, res) => {
+  try {
     const { eventId } = req.params;
     const event = await Event.findById(eventId)
       .populate({ path: 'invitedUsers', select: 'profilePicture _id first_name last_name' })
       .populate({ path: 'votes.user', select: 'profilePicture first_name last_name _id' })
       .populate({ path: 'createdBy', select: 'first_name profilePicture' });
 
-    if(!event){
+    if (!event) {
       return res.status(404).json({ status: false, message: "Event not found" });
     }
 
@@ -1426,8 +1426,8 @@ exports.getPublicEventDetails = async(req,res) =>{
     event.votes.forEach(vote => {
       if (!vote.date || !vote.timeSlot) return;
 
-      const voteDateStr = new Date(vote.date).toISOString().split('T')[0]; 
-      const voteTimeSlot = vote.timeSlot; 
+      const voteDateStr = new Date(vote.date).toISOString().split('T')[0];
+      const voteTimeSlot = vote.timeSlot;
 
       const voteKey = `${voteDateStr}-${voteTimeSlot}`;
 
@@ -1435,12 +1435,12 @@ exports.getPublicEventDetails = async(req,res) =>{
         votesByDateAndTimeSlotMap[voteKey] = {
           count: 0,
           votersProfilePictures: [],
-          userVoteTypes: {} 
+          userVoteTypes: {}
         };
       }
 
       if (vote.voteType === 'yes') {
-        votesByDateAndTimeSlotMap[voteKey].count++; 
+        votesByDateAndTimeSlotMap[voteKey].count++;
       }
 
       if (vote.user && vote.voteType === 'yes' && vote.user.profilePicture) {
@@ -1458,7 +1458,7 @@ exports.getPublicEventDetails = async(req,res) =>{
     const datesWithVotes = event.dates.map(d => {
       const eventDateStr = new Date(d.date).toISOString().split('T')[0];
 
-      const timeSlots = [d.timeSlot]; 
+      const timeSlots = [d.timeSlot];
       const dateVotes = timeSlots.map(timeSlot => {
         const voteKey = `${eventDateStr}-${timeSlot}`;
         const thisDateVotes = votesByDateAndTimeSlotMap[voteKey] || {};
@@ -1467,13 +1467,13 @@ exports.getPublicEventDetails = async(req,res) =>{
           date: formatWeekdayDate(d.date),
           timeSlot: timeSlot,
           voteCount: thisDateVotes.count || 0,
-          voteType: "", 
+          voteType: "",
           votersProfilePictures: thisDateVotes.votersProfilePictures || [],
         };
       });
 
-      return dateVotes;  
-    }).flat(); 
+      return dateVotes;
+    }).flat();
 
     const invitedUsersProfilePics = event.invitedUsers.map(u => ({
       userId: u._id,
@@ -1505,13 +1505,114 @@ exports.getPublicEventDetails = async(req,res) =>{
       dates: datesWithVotes || [],
       isFinalized: isFinalized,
       finalizedDate: finalizedData || '',
-      type: event.eventType ||"", 
+      type: event.eventType || "",
       groupId: group?._id || ''
     };
 
     res.status(200).json({ status: true, message: 'Event Fetched Successfully', data: eventDetails });
-  }catch(error){
+  } catch (error) {
     console.error("Get Public Event Details Error:", error);
     return res.status(500).json({ status: false, message: "Server error" });
+  }
+}
+
+exports.shareEvent = async (req, res) => {
+  try {
+    const { eventId } = req.params;
+    const event = await Event.findById(eventId);
+
+    if (!event) {
+      return res.status(404).json({ status: false, message: "Event not found" });
+    }
+
+    const { name } = req.query;
+    const userQuery = { status: true };
+    if (name && name.trim()) {
+      const raw = name.trim();
+      const escaped = raw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(escaped, 'i');
+      userQuery.$or = [
+        { first_name: regex },
+        { last_name: regex },
+        { $expr: { $regexMatch: { input: { $concat: ["$first_name", " ", "$last_name"] }, regex: raw, options: "i" } } }
+      ];
+    }
+
+    const users = await User.find(userQuery, 'first_name last_name profilePicture')
+      .sort({ first_name: 1 });
+
+    const data = users.map(user => ({
+      userId: user._id,
+      name: `${user.first_name || ""} ${user.last_name || ""}`.trim(),
+      profilePicture: user.profilePicture
+        ? `${process.env.LIVE_URL}/${user.profilePicture.replace(/\\/g, "/")}`
+        : ""
+    }));
+
+    return res.status(200).json({
+      status: true,
+      message: "Users fetched successfully",
+      data
+    });
+  } catch (error) {
+    console.error("Share Event Error:", error);
+    return res.status(500).json({ status: false, message: "Server error" });
+  }
+}
+
+
+exports.shareEventUser = async (req, res) => {
+  try {
+    const { eventId } = req.params;
+    const { userIds } = req.body; 
+
+    if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
+      return res.status(400).json({ status: false, message: "User ID's array is required" });
+    }
+
+    const event = await Event.findById(eventId);
+    if (!event) {
+      return res.status(404).json({ status: false, message: "Event not found" });
+    }
+
+    // Add multiple users to invitedUsers (avoid duplicates)
+    const existingUserIds = new Set(event.invitedUsers.map(id => id.toString()));
+    const newUserIds = userIds.filter(userId => !existingUserIds.has(userId.toString()));
+
+    if (newUserIds.length === 0) {
+      return res.status(200).json({ status: true, message: "All users are already invited" });
+    }
+
+    event.invitedUsers.push(...newUserIds);
+    await event.save();
+
+    // Get details of the newly added users
+    const addedUsers = await User.find({ _id: { $in: newUserIds } }, 'first_name last_name profilePicture');
+    const invitedUsersDetails = addedUsers.map(user => ({
+      userId: user._id,
+      name: `${user.first_name || ""} ${user.last_name || ""}`.trim(),
+      profilePicture: user.profilePicture
+        ? `${process.env.LIVE_URL}/${user.profilePicture.replace(/\\/g, "/")}`
+        : ""
+    }));
+
+    return res.status(200).json({
+      status: true,
+      message: `Invite to users shared successfully`,
+      data: {
+        eventId: event._id,
+        eventName: event.name,
+        addedUsers: newUserIds.length,
+        invitedUsers: event.invitedUsers,
+        // invitedUsersDetails: invitedUsersDetails
+      }
+    });
+  } catch (error) {
+    console.error("Share Event User Error:", error);
+    return res.status(500).json({
+      status: false,
+      message: "Server error",
+      error: error.message
+    });
   }
 }

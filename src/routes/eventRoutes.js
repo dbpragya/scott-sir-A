@@ -15,7 +15,9 @@ const {
   updateEvent,
   deleteEvent,
   getPublicEvents,
-  getPublicEventDetails
+  getPublicEventDetails,
+  shareEvent,
+  shareEventUser
 } = require("../controllers/eventController");
 
 const { createEventValidation, voteOnEventValidation, finalizeEventDateValidation } = require("../validators/validation");
@@ -43,8 +45,9 @@ router.put("/:eventId", authenticateUser, updateEvent); // phase-2
 router.delete("/:eventId", authenticateUser, deleteEvent); // phase-2
 
 router.get('/vote-info/:eventId', authenticateUser, getInvitedEventDetailsForVoting);
-
 router.get('/voters/:eventId', authenticateUser, getVotersByDate);
 
 router.post('/finalize/:eventId', authenticateUser, finalizeEventDate); // vote giving
+router.get('/share-event/:eventId', authenticateUser, shareEvent);
+router.put('/share-event-user/:eventId', authenticateUser, shareEventUser);
 module.exports = router;
