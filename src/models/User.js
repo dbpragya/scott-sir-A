@@ -21,19 +21,18 @@ const UserSchema = new mongoose.Schema({
   allNotifications: { type: Boolean, default: true },
   chatNotifications: { type: Boolean, default: true },
   isOtpVerified:{type:Boolean, default:false},
+
   subscription: {
     planId: { type: mongoose.Schema.Types.ObjectId, ref: 'SubscriptionPlan' },
     startDate: { type: Date },
     expiryDate: { type: Date },
     status: { type: String, enum: ['active', 'expired', 'cancelled', 'none'], default: 'none' },
+    eventsCreated: { type: Number, default: 0 }, // Total events created
   },
-
   badges: [{
     name: { type: String, required: true },
     awardedAt: { type: Date, default: Date.now },
-        image: { type: String, required: false }
-
-
+    image: { type: String, required: false }
   }],
 }, { timestamps: true });
 

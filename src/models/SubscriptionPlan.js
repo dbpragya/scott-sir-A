@@ -20,7 +20,11 @@ const SubscriptionPlanSchema = new mongoose.Schema({
   duration: { 
     type: String, 
     required: true, 
-    enum: ['day', 'week', 'month', 'year'],
+    enum: ['day', 'week', 'month', 'year','lifetime'],
+  },
+  eventLimit: {
+    type: Number,
+    default: null, // null = unlimited, 3 = limit to 3 events
   },
   description: { 
     type: String, 

@@ -3,8 +3,9 @@ const jwt = require('jsonwebtoken');
 const Event = require("../models/Event");
 const bcrypt = require("bcryptjs");
 const SubscriptionPlan = require('../models/SubscriptionPlan');
+const Transaction = require('../models/Transaction');
 const { body, validationResult } = require("express-validator");
-
+const mongoose = require('mongoose');
 const BADGES = require('../constants/badges');
 
 
@@ -340,60 +341,145 @@ exports.updateChatNotifications = async (req, res) => {
 };
 
 
+// exports.getPlan = async (req, res) => {
+//   try {
+//     const userId = req.user.id; // Logged-in user's ID
+
+//     // Find user with subscription
+//     const user = await User.findById(userId).select('subscription');
+//     if (!user || !user.subscription) {
+//       return res.status(404).json({ status: false, message: 'No subscription found for this user' });
+//     }
+
+//     // Fetch full subscription plan using planId
+//     const plan = await SubscriptionPlan.findById(user.subscription.planId).select('-__v');
+//     if (!plan) {
+//       return res.status(404).json({ status: false, message: 'Subscription plan not found' });
+//     }
+
+//     return res.status(200).json({ 
+//       status: true, 
+//       message: 'Plan fetched successfully', 
+//       data: { 
+//         ...plan.toObject(), 
+//         isActive: user.subscription.status === 'active',  // ✅ boolean instead of string
+//         expiryDate: user.subscription.expiryDate 
+//       } 
+//     });
+//   } catch (error) {
+//     res.status(500).json({ status: false, message: 'Server error, please try again later.' });
+//   }
+// };
+
+
 exports.getPlan = async (req, res) => {
   try {
-    const userId = req.user.id; // Logged-in user's ID
+    const userId = req.user.id; 
 
-    // Find user with subscription
+    const allPlans = await SubscriptionPlan.find({}).select('-__v');
     const user = await User.findById(userId).select('subscription');
-    if (!user || !user.subscription) {
-      return res.status(404).json({ status: false, message: 'No subscription found for this user' });
-    }
+    const userPlanId = user?.subscription?.planId?.toString();
 
-    // Fetch full subscription plan using planId
-    const plan = await SubscriptionPlan.findById(user.subscription.planId).select('-__v');
-    if (!plan) {
-      return res.status(404).json({ status: false, message: 'Subscription plan not found' });
-    }
+    const plansWithStatus = allPlans.map(plan => ({
+      ...plan.toObject(),
+      isPlan: userPlanId === plan._id.toString(),
+      isActive: user?.subscription?.status === 'active' && userPlanId === plan._id.toString(),
+      // expiryDate: userPlanId === plan._id.toString() ? user?.subscription?.expiryDate : null
+    }));
 
     return res.status(200).json({ 
       status: true, 
-      message: 'Plan fetched successfully', 
-      data: { 
-        ...plan.toObject(), 
-        isActive: user.subscription.status === 'active',  // ✅ boolean instead of string
-        expiryDate: user.subscription.expiryDate 
-      } 
+      message: 'Plans fetched successfully', 
+      data: plansWithStatus
     });
   } catch (error) {
-    res.status(500).json({ status: false, message: 'Server error, please try again later.' });
+    console.error('Get Plans Error:', error);
+    res.status(500).json({ 
+      status: false, 
+      message: 'Server error, please try again later.'
+     });
   }
 };
 
 exports.purchasePlan = async (req, res) => {
+
   try {
     const userId = req.user.id;
-    const { paymentId } = req.body;
+    const { 
+      paymentId, 
+      planId, 
+      currency, 
+      amount, 
+      paymentMethod,
+      paymentStatus 
+    } = req.body;
 
-    if (!paymentId) {
-      return res.status(400).json({ status: false, message: 'paymentId is required' });
+    // Validation
+    if (!paymentId || paymentId.trim() === '') {
+      return res.status(400).json({ 
+        status: false, 
+        message: 'paymentId is required' 
+      });
     }
 
+    if (!planId || !mongoose.Types.ObjectId.isValid(planId)) {
+      return res.status(400).json({ 
+        status: false, 
+        message: 'Valid planId is required' 
+      });
+    }
+
+    if (!amount || isNaN(amount) || parseFloat(amount) <= 0) {
+      return res.status(400).json({ 
+        status: false, 
+        message: 'Valid amount is required' 
+      });
+    }
+
+    const validStatuses = ['pending', 'completed', 'failed'];
+    if (!validStatuses.includes(paymentStatus)) {
+      return res.status(400).json({ 
+        status: false, 
+        message: 'paymentStatus must be one of: pending, completed, failed'
+      });
+    }
+
+    // Find user
     const user = await User.findById(userId);
     if (!user) {
-      return res.status(404).json({ status: false, message: 'User not found.' });
+      return res.status(404).json({ 
+        status: false, 
+        message: 'User not found' 
+      });
     }
 
-    const plan = await SubscriptionPlan.findOne();
+    // Find plan
+    const plan = await SubscriptionPlan.findById(planId);
     if (!plan) {
-      return res.status(404).json({ status: false, message: 'Subscription plan not found' });
+      return res.status(404).json({ 
+        status: false, 
+        message: 'Subscription plan not found' 
+      });
+    }
+
+    // Validate amount matches plan price
+    if (parseFloat(amount) !== plan.price) {
+      return res.status(400).json({ 
+        status: false, 
+        message: `Amount must be $${plan.price} for this plan` 
+      });
     }
 
     const now = new Date();
-    let expiryDate = new Date(now);
+    
+    let expiryDate = null;
 
-    // Function to add plan duration
-    const addDuration = (baseDate) => {
+    // Calculate expiry date based on plan duration
+    const calculateExpiryDate = (baseDate) => {
+      if (plan.duration === 'lifetime') {
+        return null; // No expiry for lifetime plans
+      }
+      
       let newDate = new Date(baseDate);
       switch (plan.duration) {
         case 'day':
@@ -409,53 +495,87 @@ exports.purchasePlan = async (req, res) => {
           newDate.setUTCFullYear(newDate.getUTCFullYear() + 1);
           break;
         default:
-          newDate.setUTCFullYear(newDate.getUTCFullYear() + 1);
+          newDate.setUTCMonth(newDate.getUTCMonth() + 1);
       }
       return newDate;
     };
 
-    // Case 1: User has an active subscription
-    if (
-      user.subscription &&
-      user.subscription.status === 'active' &&
-      user.subscription.expiryDate &&
-      new Date(user.subscription.expiryDate) > now
-    ) {
-      // Extend from current expiry
-      user.subscription.expiryDate = addDuration(new Date(user.subscription.expiryDate));
-      user.subscription.paymentId = paymentId;
+    // Create transaction record first
+    const transaction = new Transaction({
+      userId: user._id,
+      planId: plan._id,
+      paymentId,
+      totalPrice: parseFloat(amount),
+      currency: currency.toUpperCase(),
+      paymentStatus,
+      paymentMethod: paymentMethod,
+      subscriptionStartDate: now,
+      subscriptionEndDate: calculateExpiryDate(now)
+    });
 
-      await user.save();
-      return res.status(200).json({
-        status: true,
-        message: 'Subscription extended',
-        subscription: user.subscription,
-      });
+    // Only update user subscription if payment is completed
+    if (paymentStatus === 'completed') {
+      // Check if user has active subscription
+      const hasActiveSubscription = user.subscription && 
+        user.subscription.status === 'active' && 
+        (!user.subscription.expiryDate || new Date(user.subscription.expiryDate) > now);
+
+      if (hasActiveSubscription) {
+        // Extend existing subscription
+        const currentExpiry = user.subscription.expiryDate ? 
+          new Date(user.subscription.expiryDate) : now;
+        user.subscription.expiryDate = calculateExpiryDate(currentExpiry);
+        user.subscription.paymentId = paymentId;
+      } else {
+        // Create new subscription
+        expiryDate = calculateExpiryDate(now);
+        user.subscription = {
+          planId: plan._id,
+          startDate: now,
+          expiryDate,
+          status: 'active',
+          paymentId,
+          eventsCreated: 0,
+          lastResetDate: now
+        };
+      }
     }
 
-    // Case 2: No active subscription (start fresh from now)
-    expiryDate = addDuration(now);
+    // Save transaction and user
+    await Promise.all([transaction.save(), user.save()]);
 
-    user.subscription = {
-      planId: plan._id,
-      startDate: now,
-      expiryDate,
-      status: 'active',
-      paymentId,
-    };
-
-    await user.save();
-
-    return res.status(201).json({
+    return res.status(200).json({
       status: true,
-      message: 'Subscription activated',
-      subscription: user.subscription,
+      message: paymentStatus === 'completed' ? 'Plan purchased successfully' : 'Transaction recorded',
+      data: {
+        transaction: {
+          _id: transaction._id,
+          paymentId: transaction.paymentId,
+          totalPrice: transaction.totalPrice,
+          currency: transaction.currency,
+          paymentStatus: transaction.paymentStatus,
+          transactionDate: transaction.transactionDate
+        },
+        subscription: paymentStatus === 'completed' ? user.subscription : null,
+        plan: {
+          _id: plan._id,
+          name: plan.name,
+          duration: plan.duration,
+          eventLimit: plan.eventLimit
+        }
+      }
     });
+
   } catch (error) {
     console.error('Error in purchasePlan:', error);
-    return res.status(500).json({ status: false, message: 'Server error' });
+    return res.status(500).json({ 
+      status: false, 
+      message: 'Server error, please try again later' 
+    });
   }
 };
+
+
 
 
 

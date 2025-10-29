@@ -12,7 +12,7 @@ router.post('/logout', authenticateUser, logout);
 router.put('/all-notifications', updateAllNotificationsValidationRules, authenticateUser, updateAllNotifications);
 router.put('/chat-notifications', updateChatNotificationsValidationRules, authenticateUser, updateChatNotifications);
 
-router.get('/premium-plan', authenticateUser, getPlan);
+router.get('/plans', authenticateUser, getPlan);
 router.post('/purchase', authenticateUser, purchasePlan);
 
 module.exports = router;
