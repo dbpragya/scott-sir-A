@@ -16,17 +16,10 @@ exports.createEvent = async (req, res) => {
       message: errors.array()[0].msg,
     });
   }
-  // console.log(req.body);
+
   try {
     const { name, location, description, votingTime, dates, invitationCustomization, eventType } = req.body;
     const userId = req.user.id;
-
-    // Validate required fields
-    if (!name || !location || !description || !votingTime || !dates || !eventType) {
-
-      return res.status(400).json({ status: false, message: "All fields are required" });
-    }
-
     // Find user
     const user = await User.findById(userId);
     if (!user) {
@@ -34,41 +27,12 @@ exports.createEvent = async (req, res) => {
       return res.status(404).json({ status: false, message: "User not found" });
     }
 
-    // Enforce subscription limits
-    // Test date - change this to test expiry scenarios
-    // const now = new Date("2025-11-30T10:00:00.000Z"); // Set your test date here
-    
-    const now = new Date(); // Use this for real time
-    const subscription = user.subscription;
-    if (!subscription || subscription.status !== 'active') {
-      return res.status(403).json({ status: false, message: 'No active subscription. Please purchase a plan.' });
-    }
-
-    // Load plan to know duration and limits
-    const plan = await SubscriptionPlan.findById(subscription.planId).select('duration eventLimit name');
-    if (!plan) {
-      return res.status(400).json({ status: false, message: 'Subscription plan not found.' });
-    }
-
-    // If plan is time-bound, ensure not expired
-    if (subscription.expiryDate && new Date(subscription.expiryDate) <= now) {
-      return res.status(403).json({ status: false, message: 'Your subscription has expired. Please renew.' });
-    }
-
-    // Lifetime plan (Plan 1): enforce max events (default 3)
-    if (plan.duration === 'lifetime') {
-      const limit = typeof plan.eventLimit === 'number' ? plan.eventLimit : 3;
-      const used = subscription.eventsCreated || 0;
-      if (used >= limit) {
-        return res.status(400).json({ status: false, message: `Event limit reached for your current plan. Please upgrade to create more events.` });
-      }
-    }
-
-    // Monthly/Yearly (Plan 2/3): unlimited within active period → no count check
+    const plan = req.plan;
+    const subscription = req.subscription;
 
     // Handle theme selection - only Plan 2 and Plan 3 can use custom themes
     let selectedTheme = "Theme1"; // Default theme
-    if (plan.duration === 'month' || plan.duration === 'year') {
+    if (plan && (plan.duration === 'month' || plan.duration === 'year')) {
       // Plan 2 (monthly) and Plan 3 (yearly) can use custom themes
       if (invitationCustomization?.theme) {
         selectedTheme = invitationCustomization.theme;
@@ -100,7 +64,7 @@ exports.createEvent = async (req, res) => {
     await newEvent.save();
 
     // Post-create: increment counter for lifetime plans only
-    if (plan.duration === 'lifetime') {
+    if (plan && plan.duration === 'lifetime') {
       user.subscription.eventsCreated = (user.subscription.eventsCreated || 0) + 1;
       await user.save();
     }

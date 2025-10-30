@@ -23,21 +23,18 @@ const {
 const { createEventValidation, voteOnEventValidation, finalizeEventDateValidation } = require("../validators/validation");
 const { validationResult } = require("express-validator");
 const authenticateUser = require("../middleware/authmiddleware");
+const checkMonthlyEventLimit = require('../middleware/eventLimitMiddleware');
 
-router.post( "/create",authenticateUser,createEventValidation,createEvent);
+router.post( "/create", authenticateUser, checkMonthlyEventLimit, createEventValidation, createEvent);
 router.get('/invite', authenticateUser, handleInviteLink);
 
 router.post("/accept-invite", authenticateUser, AcceptInvite);
 router.post('/vote/:eventId', authenticateUser, voteOnEventValidation,voteOnEvent);
-
 router.get("/", authenticateUser, getAllEvents);
 router.get("/details/:eventId", authenticateUser, getEventById);
 router.get("/my-invites", authenticateUser, getInvitedEvents);
-
 router.get("/public-events", authenticateUser, getPublicEvents);
 router.get("/public-events-details/:eventId", authenticateUser, getPublicEventDetails);
-
-
 // router.get("/:eventId", authenticateUser, getEventById); 
 
 router.get("/:eventId", authenticateUser, EditEvent); // phase-2
