@@ -24,21 +24,33 @@ exports.getProfile = async (req, res) => {
       return res.status(400).json({ status: false, message: "User not found" });
     }
 
-    let badges = (user.badges || []).map(badge => ({
-      _id: badge._id ? String(badge._id) : "",
-      name: badge.name || "",
-      awardedAt: badge.awardedAt || "",
-      image: badge.image
-        ? `${process.env.LIVE_URL}${badge.image.replace(/\\/g, '/')}`
-        : ""
-    }));
+    let badges = (user.badges || []).map(badge => {
+      // Find matching badge in constants for description
+      const badgeFromConst = Object.values(BADGES).find(b => b.name === badge.name);
+      return {
+        _id: badge._id ? String(badge._id) : "",
+        name: badge.name || "",
+        awardedAt: badge.awardedAt || "",
+        image: badge.image
+          ? `${process.env.LIVE_URL}${badge.image.replace(/\\/g, '/')}`
+          : "",
+        description: badgeFromConst ? badgeFromConst.description : ""
+      };
+    });
 
     // If no badges, return at least one object with empty fields
     if (badges.length === 0) {
       badges = [
-        { _id: "", name: "", awardedAt: "", image: "" }
+        { _id: "", name: "", awardedAt: "", image: "", description: "" }
       ];
     }
+
+    // Complete badge info from BADGES constants
+    const badgeinfo = Object.values(BADGES).map(badge => ({
+      name: badge.name,
+      image: `${process.env.LIVE_URL}${badge.image}`,
+      description: badge.description
+    }));
 
     res.status(200).json({
       status: true,
@@ -50,7 +62,8 @@ exports.getProfile = async (req, res) => {
         profilePicture: user.profilePicture
           ? `${process.env.LIVE_URL}/${user.profilePicture.replace(/\\/g, '/')}`
           : '',
-        badges
+        badges,
+        badgeinfo
       }
     });
   } catch (error) {

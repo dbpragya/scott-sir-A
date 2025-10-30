@@ -105,7 +105,6 @@ exports.createEvent = async (req, res) => {
       await user.save();
     }
 
-
     const newGroup = new Group({
       eventId: newEvent._id,
       members: [{ user: userId, role: "planner" }]
@@ -170,7 +169,6 @@ exports.EditEvent = async (req, res) => {
       message: "Event fetched successfully",
       data: formattedEvent
     });
-
 
   } catch (error) {
     console.error("Edit Event Error:", error);
