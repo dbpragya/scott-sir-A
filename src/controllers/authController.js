@@ -12,7 +12,6 @@ function generateOTP() {
   return Math.floor(1000 + Math.random() * 9000).toString(); // Generates 4-digit OTP
 }
 
-
 // Validation Done
 const signup = async (req, res) => {
   const errors = validationResult(req);

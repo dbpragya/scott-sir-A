@@ -143,3 +143,63 @@ exports.getTopRankings = async (req, res) => {
     });
   }
 };
+
+
+exports.getCommunityRankings = async (req, res) => {
+  try {
+    // No limit, return all community rankings
+    const communityRankings = await Event.aggregate([
+      {
+        $group: {
+          _id: '$createdBy',
+          eventCount: { $sum: 1 },
+        },
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'userInfo',
+        },
+      },
+      { $unwind: '$userInfo' },
+      { $sort: { eventCount: -1 } },
+      // Removed $limit to include all users
+      {
+        $project: {
+          _id: 0,
+          userId: '$_id',
+          name: { $concat: ['$userInfo.first_name', ' ', '$userInfo.last_name'] },
+          profilePicture: '$userInfo.profilePicture',
+          eventCount: 1,
+          badges: '$userInfo.badges',
+        },
+      },
+    ]);
+
+    const rankedWithPosition = communityRankings.map((user, index) => ({
+      position: (index + 1).toString() || '',
+      userId: user.userId,
+      name: user.name || '',
+      profilePicture: user.profilePicture
+        ? `${process.env.LIVE_URL}/${user.profilePicture.replace(/\\/g, '/')}`
+        : '',
+      eventCount: user.eventCount.toString() || '',
+      badges: processBadges(user.badges),
+    }));
+
+    return res.status(200).json({
+      status: true,
+      message: 'Community rankings fetched successfully',
+      data: rankedWithPosition,
+    });
+  } catch (error) {
+    console.error('Error in getCommunityRankings:', error);
+    return res.status(500).json({
+      status: false,
+      message: 'Server error',
+      error: error.message,
+    });
+  }
+};
