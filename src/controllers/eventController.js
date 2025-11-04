@@ -1238,21 +1238,147 @@ exports.finalizeEventDate = async (req, res) => {
   }
 };
 
+// exports.getPublicEvents = async (req, res) => {
+//   try {
+//     const events = await Event.find({ eventType: "Public" })
+//       .sort({ createdAt: -1 })
+//       .populate({ path: "createdBy", select: "first_name profilePicture" })
+//       .populate({ path: "votes.user", select: "profilePicture _id voteType" });
+
+//     if (events.length === 0) {
+//       return res.status(404).json({ status: false, message: "No public events found" });
+//     }
+
+//     const modifiedEvents = events.map(event => {
+//       const votesByDateMap = {};
+
+//       event.votes.forEach(vote => {
+//         if (!vote.date || vote.voteType !== "yes") return;
+
+//         const voteDateStr = new Date(vote.date).toISOString().split("T")[0];
+
+//         if (!votesByDateMap[voteDateStr]) {
+//           votesByDateMap[voteDateStr] = {
+//             count: 0,
+//             votersProfilePictures: new Map() 
+//           };
+//         }
+
+//         // Increment only for "yes" votes
+//         votesByDateMap[voteDateStr].count++;
+
+//         if (vote.user && vote.user.profilePicture) {
+//           votesByDateMap[voteDateStr].votersProfilePictures.set(
+//             vote.user._id.toString(),
+//             {
+//               userId: vote.user._id,
+//               profilePicture: `${process.env.LIVE_URL}/${vote.user.profilePicture}`
+//             }
+//           );
+//         }
+//       });
+
+//       const datesWithVotes = event.dates.map(d => {
+//         const eventDateStr = new Date(d.date).toISOString().split("T")[0];
+
+//         return {
+//           date: d.date,
+//           timeSlot: d.timeSlot || "",
+//           _id: d._id,
+//           voteCount: votesByDateMap[eventDateStr]?.count || 0,
+//           votersProfilePictures: Array.from(
+//             votesByDateMap[eventDateStr]?.votersProfilePictures?.values() || []
+//           ) // Convert Map values to array
+//         };
+//       });
+
+//       const creatorProfilePictureUrl = {
+//         name: event.createdBy?.first_name || "",
+//         profilePicture: event.createdBy?.profilePicture
+//           ? `${process.env.LIVE_URL}/${event.createdBy.profilePicture.replace(/\\/g, "/")}`
+//           : ""
+//       };
+
+//       const finalizedDate = event.finalizedDate
+//         ? {
+//           date: event.finalizedDate.date || "",
+//           timeSlot: event.finalizedDate.timeSlot || ""
+//         }
+//         : { date: "", timeSlot: "" };
+
+//       return {
+//         id: event._id,
+//         name: event.name || "",
+//         location: event.location || "",
+//         description: event.description || "",
+//         invitationCustomization: event.invitationCustomization || "",
+//         type: event.type,
+//         eventType: event.eventType || "",
+//         creatorProfilePicture: creatorProfilePictureUrl,
+//         voteCount: event.votes.filter(vote => vote.voteType === "yes").length,
+//         votersProfilePictures: Array.from(
+//           new Map(
+//             event.votes
+//               .filter(vote => vote.voteType === "yes" && vote.user?.profilePicture)
+//               .map(vote => [
+//                 vote.user._id.toString(),
+//                 {
+//                   userId: vote.user._id,
+//                   profilePicture: `${process.env.LIVE_URL}/${vote.user.profilePicture}`
+//                 }
+//               ])
+//           ).values()
+//         ),
+//         finalizedDate,
+
+//       };
+//     });
+
+//     res.status(200).json({
+//       status: true,
+//       message: "Public events fetched successfully",
+//       data: modifiedEvents
+//     });
+//   } catch (error) {
+//     console.error("Get Public Events Error:", error);
+//     res.status(500).json({ status: false, message: "Server error" });
+//   }
+// }
+
 exports.getPublicEvents = async (req, res) => {
   try {
-    const events = await Event.find({ eventType: "Public" })
+    const { name } = req.query; 
+    const eventQuery = { eventType: "Public" };
+
+    // If search term is provided
+    if (name && name.trim()) {
+      const raw = name.trim();
+      const escaped = raw.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const regex = new RegExp(escaped, "i");
+
+      // Search in name, location, or description
+      eventQuery.$or = [
+        { name: regex },
+        { location: regex },
+        { description: regex },
+      ];
+    }
+
+    const events = await Event.find(eventQuery)
       .sort({ createdAt: -1 })
       .populate({ path: "createdBy", select: "first_name profilePicture" })
       .populate({ path: "votes.user", select: "profilePicture _id voteType" });
 
-    if (events.length === 0) {
-      return res.status(404).json({ status: false, message: "No public events found" });
+    if (!events.length) {
+      return res
+        .status(404)
+        .json({ status: false, message: "No public events found" });
     }
 
-    const modifiedEvents = events.map(event => {
+    const modifiedEvents = events.map((event) => {
       const votesByDateMap = {};
 
-      event.votes.forEach(vote => {
+      event.votes.forEach((vote) => {
         if (!vote.date || vote.voteType !== "yes") return;
 
         const voteDateStr = new Date(vote.date).toISOString().split("T")[0];
@@ -1260,11 +1386,10 @@ exports.getPublicEvents = async (req, res) => {
         if (!votesByDateMap[voteDateStr]) {
           votesByDateMap[voteDateStr] = {
             count: 0,
-            votersProfilePictures: new Map() 
+            votersProfilePictures: new Map(),
           };
         }
 
-        // Increment only for "yes" votes
         votesByDateMap[voteDateStr].count++;
 
         if (vote.user && vote.user.profilePicture) {
@@ -1272,15 +1397,14 @@ exports.getPublicEvents = async (req, res) => {
             vote.user._id.toString(),
             {
               userId: vote.user._id,
-              profilePicture: `${process.env.LIVE_URL}/${vote.user.profilePicture}`
+              profilePicture: `${process.env.LIVE_URL}/${vote.user.profilePicture}`,
             }
           );
         }
       });
 
-      const datesWithVotes = event.dates.map(d => {
+      const datesWithVotes = event.dates.map((d) => {
         const eventDateStr = new Date(d.date).toISOString().split("T")[0];
-
         return {
           date: d.date,
           timeSlot: d.timeSlot || "",
@@ -1288,22 +1412,25 @@ exports.getPublicEvents = async (req, res) => {
           voteCount: votesByDateMap[eventDateStr]?.count || 0,
           votersProfilePictures: Array.from(
             votesByDateMap[eventDateStr]?.votersProfilePictures?.values() || []
-          ) // Convert Map values to array
+          ),
         };
       });
 
       const creatorProfilePictureUrl = {
         name: event.createdBy?.first_name || "",
         profilePicture: event.createdBy?.profilePicture
-          ? `${process.env.LIVE_URL}/${event.createdBy.profilePicture.replace(/\\/g, "/")}`
-          : ""
+          ? `${process.env.LIVE_URL}/${event.createdBy.profilePicture.replace(
+              /\\/g,
+              "/"
+            )}`
+          : "",
       };
 
       const finalizedDate = event.finalizedDate
         ? {
-          date: event.finalizedDate.date || "",
-          timeSlot: event.finalizedDate.timeSlot || ""
-        }
+            date: event.finalizedDate.date || "",
+            timeSlot: event.finalizedDate.timeSlot || "",
+          }
         : { date: "", timeSlot: "" };
 
       return {
@@ -1315,35 +1442,37 @@ exports.getPublicEvents = async (req, res) => {
         type: event.type,
         eventType: event.eventType || "",
         creatorProfilePicture: creatorProfilePictureUrl,
-        voteCount: event.votes.filter(vote => vote.voteType === "yes").length,
+        voteCount: event.votes.filter((vote) => vote.voteType === "yes").length,
         votersProfilePictures: Array.from(
           new Map(
             event.votes
-              .filter(vote => vote.voteType === "yes" && vote.user?.profilePicture)
-              .map(vote => [
+              .filter(
+                (vote) => vote.voteType === "yes" && vote.user?.profilePicture
+              )
+              .map((vote) => [
                 vote.user._id.toString(),
                 {
                   userId: vote.user._id,
-                  profilePicture: `${process.env.LIVE_URL}/${vote.user.profilePicture}`
-                }
+                  profilePicture: `${process.env.LIVE_URL}/${vote.user.profilePicture}`,
+                },
               ])
           ).values()
         ),
         finalizedDate,
-
+        dates: datesWithVotes,
       };
     });
 
     res.status(200).json({
       status: true,
       message: "Public events fetched successfully",
-      data: modifiedEvents
+      data: modifiedEvents,
     });
   } catch (error) {
     console.error("Get Public Events Error:", error);
     res.status(500).json({ status: false, message: "Server error" });
   }
-}
+};
 
 
 exports.getPublicEventDetails = async (req, res) => {

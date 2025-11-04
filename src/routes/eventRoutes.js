@@ -17,6 +17,7 @@ const {
   getPublicEvents,
   getPublicEventDetails,
   shareEvent,
+  shareEventUserdeleteEvent,
   shareEventUser
 } = require("../controllers/eventController");
 
