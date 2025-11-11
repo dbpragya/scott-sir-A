@@ -81,6 +81,11 @@ exports.createEvent = async (req, res) => {
 
     await checkTopPlannerBadge(userId);
 
+    const baseUrl =
+    process.env.NODE_ENV === "production"
+        ? process.env.LIVE_URL
+        : process.env.LOCAL_URL;
+
     const responseData = {
       id: newEvent._id,
       name: newEvent.name || "",
@@ -92,7 +97,7 @@ exports.createEvent = async (req, res) => {
       creatorProfilePicture: {
         name: user.firstName || "Updated Firstname",
         profilePicture: user.profilePicture
-          ? `${process.env.LIVE_URL}/${user.profilePicture.replace(/\\/g, "/")}`
+          ? `${baseUrl}/${user.profilePicture.replace(/\\/g, "/")}`
           : "",
       },
       voteCount: newEvent.votes ? newEvent.votes.length : 0,
@@ -258,6 +263,11 @@ exports.getAllEvents = async (req, res) => {
       return res.status(404).json({ status: false, message: "No events found for this user" });
     }
 
+    const baseUrl =
+      process.env.NODE_ENV === "production"
+        ? process.env.LIVE_URL
+        : process.env.LOCAL_URL;
+
     const modifiedEvents = events.map(event => {
       const votesByDateMap = {};
 
@@ -276,12 +286,12 @@ exports.getAllEvents = async (req, res) => {
         // Increment only for "yes" votes
         votesByDateMap[voteDateStr].count++;
 
-        if (vote.user && vote.user.profilePicture) {
+        if (vote.user && vote.user.profilePicture && baseUrl) {
           votesByDateMap[voteDateStr].votersProfilePictures.set(
             vote.user._id.toString(),
             {
               userId: vote.user._id,
-              profilePicture: `${process.env.LIVE_URL}/${vote.user.profilePicture}`
+              profilePicture: `${baseUrl}/${vote.user.profilePicture.replace(/\\/g, "/")}`
             }
           );
         }
@@ -303,8 +313,8 @@ exports.getAllEvents = async (req, res) => {
 
       const creatorProfilePictureUrl = {
         name: event.createdBy?.first_name || "",
-        profilePicture: event.createdBy?.profilePicture
-          ? `${process.env.LIVE_URL}/${event.createdBy.profilePicture.replace(/\\/g, "/")}`
+        profilePicture: event.createdBy?.profilePicture && baseUrl
+          ? `${baseUrl}/${event.createdBy.profilePicture.replace(/\\/g, "/")}`
           : ""
       };
 
@@ -328,12 +338,12 @@ exports.getAllEvents = async (req, res) => {
         votersProfilePictures: Array.from(
           new Map(
             event.votes
-              .filter(vote => vote.voteType === "yes" && vote.user?.profilePicture)
+              .filter(vote => vote.voteType === "yes" && vote.user?.profilePicture && baseUrl)
               .map(vote => [
                 vote.user._id.toString(),
                 {
                   userId: vote.user._id,
-                  profilePicture: `${process.env.LIVE_URL}/${vote.user.profilePicture}`
+                  profilePicture: `${baseUrl}/${vote.user.profilePicture.replace(/\\/g, "/")}`
                 }
               ])
           ).values()
@@ -361,7 +371,6 @@ exports.getEventById = async (req, res) => {
       .populate({ path: 'createdBy', select: 'first_name' })
       .populate({ path: 'votes.user', select: 'profilePicture first_name last_name _id' })
       .populate({ path: 'invitedUsers', select: 'profilePicture _id first_name last_name' })
-
 
 
     if (!event) {
@@ -727,6 +736,11 @@ exports.getInvitedEventDetailsForVoting = async (req, res) => {
       finalizedDate = getFormattedDate(event.finalizedDate.date);
     }
 
+    const baseUrl =
+    process.env.NODE_ENV === "production"
+        ? process.env.LIVE_URL
+        : process.env.LOCAL_URL;
+        
     // Construct event details response
     const eventDetails = {
       eventId: event._id,
@@ -736,7 +750,7 @@ exports.getInvitedEventDetailsForVoting = async (req, res) => {
       creator: {
         name: event.createdBy?.first_name || '',
         profilePicture: event.createdBy?.profilePicture
-          ? `${process.env.LIVE_URL}/${event.createdBy.profilePicture.replace(/\\/g, '/')}`
+          ? `${baseUrl}/${event.createdBy.profilePicture.replace(/\\/g, '/')}`
           : '',
       },
       dates: datesWithFormattedDate,
@@ -1656,12 +1670,15 @@ exports.shareEvent = async (req, res) => {
 
     const users = await User.find(userQuery, 'first_name last_name profilePicture')
       .sort({ first_name: 1 });
-
+      const baseUrl =
+      process.env.NODE_ENV === "production"
+          ? process.env.LIVE_URL
+          : process.env.LOCAL_URL;
     const data = users.map(user => ({
       userId: user._id,
       name: `${user.first_name || ""} ${user.last_name || ""}`.trim(),
       profilePicture: user.profilePicture
-        ? `${process.env.LIVE_URL}/${user.profilePicture.replace(/\\/g, "/")}`
+        ? `${baseUrl}/${user.profilePicture.replace(/\\/g, "/")}`
         : ""
     }));
 
