@@ -260,7 +260,11 @@ exports.getAllEvents = async (req, res) => {
       .populate({ path: "votes.user", select: "profilePicture _id voteType" });
 
     if (events.length === 0) {
-      return res.status(404).json({ status: false, message: "No events found for this user" });
+      return res.status(200).json({
+        status: true,
+        message: "No events found for this user",
+        data: []
+      });
     }
 
     const baseUrl =
@@ -954,10 +958,10 @@ exports.getInvitedEvents = async (req, res) => {
       });
 
     if (events.length === 0) {
-      console.log("No invited events found for user.");
-      return res.status(404).json({
-        status: false,
+      return res.status(200).json({
+        status: true,
         message: "No invited events found for the user.",
+        data: []
       });
     }
 
@@ -1384,9 +1388,11 @@ exports.getPublicEvents = async (req, res) => {
       .populate({ path: "votes.user", select: "profilePicture _id voteType" });
 
     if (!events.length) {
-      return res
-        .status(404)
-        .json({ status: false, message: "No public events found" });
+      return res.status(200).json({
+        status: true,
+        message: "No public events found",
+        data: []
+      });
     }
 
     const modifiedEvents = events.map((event) => {

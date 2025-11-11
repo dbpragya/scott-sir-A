@@ -171,7 +171,7 @@ exports.getTotalEvents = async (req, res) => {
       const month = new Date(event.dates[0].date).toLocaleString('default', { month: 'long', year: 'numeric' });
       
       // Ensure invitationCustomization exists
-      const invitationCustomization = event.invitationCustomization;  // Default to "Theme1" if not provided
+      const invitationCustomization = event.invitationCustomization; 
 
       if (!acc[month]) acc[month] = [];
       acc[month].push({
@@ -180,7 +180,7 @@ exports.getTotalEvents = async (req, res) => {
         date: event.dates[0]?.date ? new Date(event.dates[0].date).toLocaleDateString() : '',
         timeSlot: event.dates[0]?.timeSlot || '',
         totalVoted: event.votes ? event.votes.length : 0,
-        invitationCustomization: invitationCustomization || '',  // Add invitationCustomization to the event
+        invitationCustomization: invitationCustomization || '',  
       });
       return acc;
     }, {});
@@ -294,9 +294,6 @@ exports.logout = async (req, res) => {
 };
 
 
-
-
-
 // Validation Done
 exports.updateAllNotifications = async (req, res) => {
   const errors = validationResult(req);
@@ -395,6 +392,7 @@ exports.getPlan = async (req, res) => {
 
     const plansWithStatus = allPlans.map(plan => ({
       ...plan.toObject(),
+      // duration: '',
       isPlan: userPlanId === plan._id.toString(),
       isActive: user?.subscription?.status === 'active' && userPlanId === plan._id.toString(),
       // expiryDate: userPlanId === plan._id.toString() ? user?.subscription?.expiryDate : null
