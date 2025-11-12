@@ -619,7 +619,6 @@ exports.AcceptInvite = async (req, res) => {
 };
 
 
-
 exports.handleInviteLink = async (req, res) => {
   const { eventId } = req.query;
 
@@ -1375,11 +1374,7 @@ exports.getPublicEvents = async (req, res) => {
       const regex = new RegExp(escaped, "i");
 
       // Search in name, location, or description
-      eventQuery.$or = [
-        { name: regex },
-        { location: regex },
-        { description: regex },
-      ];
+      eventQuery.$or = [{ name: regex }];
     }
 
     const events = await Event.find(eventQuery)
@@ -1698,7 +1693,6 @@ exports.shareEvent = async (req, res) => {
     return res.status(500).json({ status: false, message: "Server error" });
   }
 }
-
 
 exports.shareEventUser = async (req, res) => {
   try {
