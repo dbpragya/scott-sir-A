@@ -8,7 +8,6 @@ const { body, validationResult } = require("express-validator");
 const mongoose = require('mongoose');
 const BADGES = require('../constants/badges');
 
-
 exports.getProfile = async (req, res) => {
   try {
     const token = req.header('Authorization')?.replace('Bearer ', '');
@@ -73,7 +72,6 @@ exports.getProfile = async (req, res) => {
 };
 
 
-// Validation Done
 exports.updateProfile = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -139,8 +137,8 @@ exports.updateProfile = async (req, res) => {
       data: {
         first_name: user.first_name,
         last_name: user.last_name,
-        email: user.email, // Include email in the response
-        profilePicture: profilePictureUrl, // Format profile picture URL
+        email: user.email, 
+        profilePicture: profilePictureUrl, 
         badges
       },
     });
@@ -203,7 +201,6 @@ exports.getTotalEvents = async (req, res) => {
 };
 
 
-// Validation Done
 exports.changePassword = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -294,7 +291,6 @@ exports.logout = async (req, res) => {
 };
 
 
-// Validation Done
 exports.updateAllNotifications = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -322,7 +318,6 @@ exports.updateAllNotifications = async (req, res) => {
   }
 };
 
-// Validation Done
 exports.updateChatNotifications = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {

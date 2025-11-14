@@ -1162,7 +1162,6 @@ exports.getVotersByDate = async (req, res) => {
   }
 };
 
-
 // Validation Done 
 exports.finalizeEventDate = async (req, res) => {
   try {

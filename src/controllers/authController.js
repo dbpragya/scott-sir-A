@@ -333,6 +333,7 @@ const login = async (req, res) => {
         email: user.email,
         profilePicture: user.profilePicture ? `${process.env.LIVE_URL}/${user.profilePicture}` : '',
         isVerify: user.isVerify,
+        deviceTokens: user.deviceTokens,
       },
     });
   } catch (error) {
