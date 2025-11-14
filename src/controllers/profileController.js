@@ -33,6 +33,7 @@ exports.getProfile = async (req, res) => {
         image: badge.image
           ? `${process.env.LIVE_URL}${badge.image.replace(/\\/g, '/')}`
           : "",
+          deviceToken: user.deviceTokens[0] || "",
         description: badgeFromConst ? badgeFromConst.description : ""
       };
     });
