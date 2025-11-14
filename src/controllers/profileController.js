@@ -60,7 +60,8 @@ exports.getProfile = async (req, res) => {
         first_name: user.first_name,
         last_name: user.last_name,
         email: user.email,
-        deviceToken: user.deviceTokens[0] || "",
+        
+        deviceTokens: user.deviceTokens,
         profilePicture: user.profilePicture
           ? `${process.env.LIVE_URL}/${user.profilePicture.replace(/\\/g, '/')}`
           : '',
