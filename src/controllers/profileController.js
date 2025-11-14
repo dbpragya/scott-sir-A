@@ -30,10 +30,11 @@ exports.getProfile = async (req, res) => {
         _id: badge._id ? String(badge._id) : "",
         name: badge.name || "",
         awardedAt: badge.awardedAt || "",
+        
         image: badge.image
           ? `${process.env.LIVE_URL}${badge.image.replace(/\\/g, '/')}`
           : "",
-          deviceToken: user.deviceTokens[0] || "",
+        
         description: badgeFromConst ? badgeFromConst.description : ""
       };
     });
@@ -59,6 +60,7 @@ exports.getProfile = async (req, res) => {
         first_name: user.first_name,
         last_name: user.last_name,
         email: user.email,
+        deviceToken: user.deviceTokens[0] || "",
         profilePicture: user.profilePicture
           ? `${process.env.LIVE_URL}/${user.profilePicture.replace(/\\/g, '/')}`
           : '',
