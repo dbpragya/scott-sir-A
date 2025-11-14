@@ -6,6 +6,7 @@ const { checkSpeedyVoterBadge } = require('../utils/badgeUtils');
 const Group = require("../models/Group");
 const SubscriptionPlan = require('../models/SubscriptionPlan');
 const createNotification = require('../utils/createNotification');
+const { sendPushNotification } = require('../services/notificationService');
 const { validationResult } = require("express-validator");
 
 exports.createEvent = async (req, res) => {
@@ -1727,6 +1728,32 @@ exports.shareEventUser = async (req, res) => {
         ? `${process.env.LIVE_URL}/${user.profilePicture.replace(/\\/g, "/")}`
         : ""
     }));
+
+    const notificationTitle = "You've been invited!";
+    const notificationBody = `${event.name || "An event"} has been shared with you.`;
+    const notificationData = {
+      type: "EVENT_INVITE",
+      eventId: event._id.toString(),
+      eventName: event.name || "",
+      invitedBy: req?.user?.id ? String(req.user.id) : "",
+    };
+
+    const pushNotifications = newUserIds.map((userId) =>
+      sendPushNotification({
+        userId: userId.toString(),
+        title: notificationTitle,
+        body: notificationBody,
+        data: notificationData,
+      }).catch((error) => {
+        console.error("Share Event User Push Error:", { userId, error: error.message });
+      })
+    );
+
+    const inAppNotifications = newUserIds.map((userId) =>
+      createNotification(userId, notificationTitle, notificationBody)
+    );
+
+    await Promise.all([...pushNotifications, ...inAppNotifications]);
 
     return res.status(200).json({
       status: true,

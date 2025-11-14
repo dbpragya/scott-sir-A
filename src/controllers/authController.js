@@ -41,11 +41,9 @@ const signup = async (req, res) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const otp = generateOTP(); // Generate random OTP
+    const otp = generateOTP(); //generate random otp
     const hashedOtp = await bcrypt.hash(otp, 10);
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
-
-
 
     const newUser = new User({
       first_name,
@@ -66,7 +64,6 @@ const signup = async (req, res) => {
       console.log(`Email sent successfully to: ${newUser.email}`);
     } catch (emailError) {
       console.error(`Failed to send email to ${newUser.email}:`, emailError);
-
     }
     return res.status(200).json({
       status: true,
@@ -81,6 +78,7 @@ const signup = async (req, res) => {
 };
 
 const verifyOtp = async (req, res) => {
+  
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({
