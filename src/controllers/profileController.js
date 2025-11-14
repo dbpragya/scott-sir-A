@@ -46,7 +46,7 @@ exports.getProfile = async (req, res) => {
       ];
     }
 
-    // Complete badge info from BADGES constants
+    // Complete badge info from BADGES constantsss
     const badgeinfo = Object.values(BADGES).map(badge => ({
       name: badge.name,
       image: `${process.env.LIVE_URL}${badge.image}`,
