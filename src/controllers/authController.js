@@ -78,7 +78,7 @@ const signup = async (req, res) => {
 };
 
 const verifyOtp = async (req, res) => {
-  
+
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({
@@ -139,13 +139,6 @@ const verifyOtp = async (req, res) => {
     return res.status(500).json({ status: false, message: "Server error" });
   }
 }
-
-
-
-
-
-
-
 
 // Validation Done
 const createPassword = async (req, res) => {
@@ -236,12 +229,6 @@ const resendOtp = async (req, res) => {
     return res.status(500).json({ status: false, message: "Server error" });
   }
 };
-
-
-
-
-
-
 
 // Validation Done
 const login = async (req, res) => {
@@ -340,10 +327,6 @@ const login = async (req, res) => {
   }
 };
 
-
-
-
-
 const uploadProfilePicture = async (req, res) => {
   try {
     if (!req.file) {
@@ -378,7 +361,6 @@ const uploadProfilePicture = async (req, res) => {
     res.status(500).json({ status: false, message: "Internal Server Error!" });
   }
 };
-
 
 
 const forgotPassword = async (req, res, next) => {
@@ -424,8 +406,6 @@ const forgotPassword = async (req, res, next) => {
     return res.status(500).json({ status: false, message: "Server error" });
   }
 };
-
-
 
 const verifyResetPassword = async (req, res, next) => {
   try {

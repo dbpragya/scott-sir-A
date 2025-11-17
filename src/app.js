@@ -21,7 +21,6 @@ app.use("/api", require("./routes/userandgroupRoutes"));
 app.use("/api/ranking", require("./routes/rankingRoutes"));
 app.use("/.well-known/assetlinks.json", require("./routes/deeplinkRoutes"));
 
-// ok ok
 app.use(errorHandler);
 
 module.exports = app;   

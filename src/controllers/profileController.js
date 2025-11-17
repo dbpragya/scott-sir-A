@@ -89,6 +89,7 @@ exports.updateProfile = async (req, res) => {
 
   try {
     const token = req.header('Authorization')?.replace('Bearer ', '');
+    
     if (!token) {
       return res.status(401).json({ status: false, message: "No token, access denied" });
     }
@@ -295,6 +296,33 @@ exports.logout = async (req, res) => {
 };
 
 
+// exports.updateAllNotifications = async (req, res) => {
+//   const errors = validationResult(req);
+//   if (!errors.isEmpty()) {
+//     return res.status(400).json({
+//       status: false,
+//       message: errors.array()[0].msg,
+//     });
+//   }
+
+//   const { allNotifications } = req.body;
+
+//   try {
+//     const user = await User.findById(req.user.id);
+//     if (!user) {
+//       return res.status(404).json({ status: false, message: 'User not found.' });
+//     }
+
+//     user.allNotifications = allNotifications;
+//     await user.save();
+
+//     return res.status(200).json({ status: true, message: 'All notifications updated successfully.' });
+//   } catch (error) {
+//     console.error(error);
+//     return res.status(500).json({ status: false, message: 'Server error, please try again later.' });
+//   }
+// };
+
 exports.updateAllNotifications = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -315,12 +343,25 @@ exports.updateAllNotifications = async (req, res) => {
     user.allNotifications = allNotifications;
     await user.save();
 
-    return res.status(200).json({ status: true, message: 'All notifications updated successfully.' });
+    const message = allNotifications
+      ? "All notifications have been enabled."
+      : "All notifications have been disabled.";
+
+    return res.status(200).json({
+      status: true,
+      allNotifications,
+      message,
+    });
+
   } catch (error) {
     console.error(error);
-    return res.status(500).json({ status: false, message: 'Server error, please try again later.' });
+    return res.status(500).json({
+      status: false,
+      message: 'Server error, please try again later.',
+    });
   }
 };
+
 
 exports.updateChatNotifications = async (req, res) => {
   const errors = validationResult(req);
