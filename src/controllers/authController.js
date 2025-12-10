@@ -23,7 +23,14 @@ const signup = async (req, res) => {
   }
 
   try {
-    const { first_name, last_name, email, password, confirmPassword, deviceToken } = req.body;
+    const {
+      first_name,
+      last_name,
+      email,
+      password,
+      confirmPassword,
+      deviceToken,
+    } = req.body;
 
     if (password !== confirmPassword) {
       return res.status(400).json({
@@ -78,7 +85,6 @@ const signup = async (req, res) => {
 };
 
 const verifyOtp = async (req, res) => {
-
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({
@@ -103,7 +109,9 @@ const verifyOtp = async (req, res) => {
 
     // Check if OTP has expired
     if (user.otpExpiry <= Date.now()) {
-      return res.status(400).json({ status: false, message: "OTP has expired" });
+      return res
+        .status(400)
+        .json({ status: false, message: "OTP has expired" });
     }
 
     // Mark OTP as verified and user as verified
@@ -118,8 +126,8 @@ const verifyOtp = async (req, res) => {
     );
 
     const profilePictureUrl = user.profilePicture
-      ? `${process.env.LIVE_URL}/${user.profilePicture.replace(/\\/g, '/')}`
-      : '';
+      ? `${process.env.LIVE_URL}/${user.profilePicture.replace(/\\/g, "/")}`
+      : "";
 
     return res.status(200).json({
       status: true,
@@ -130,7 +138,7 @@ const verifyOtp = async (req, res) => {
         first_name: user.first_name,
         last_name: user.last_name,
         email: user.email,
-        profilePicture: profilePictureUrl || '', // Format profile picture URL
+        profilePicture: profilePictureUrl || "", // Format profile picture URL
         isVerify: user.isVerify,
       },
     });
@@ -138,7 +146,7 @@ const verifyOtp = async (req, res) => {
     console.error("Create Event Error:", error);
     return res.status(500).json({ status: false, message: "Server error" });
   }
-}
+};
 
 // Validation Done
 const createPassword = async (req, res) => {
@@ -216,14 +224,15 @@ const resendOtp = async (req, res) => {
     user.otpExpiry = Date.now() + 10 * 60 * 1000;
     await user.save();
 
-
     await sendEmail({
       to: user.email,
       subject: "Password Reset OTP",
       text: `Your OTP is: ${otp}`,
     });
 
-    return res.status(200).json({ status: true, message: "OTP resent successfully" });
+    return res
+      .status(200)
+      .json({ status: true, message: "OTP resent successfully" });
   } catch (error) {
     console.error("Create Event Error:", error);
     return res.status(500).json({ status: false, message: "Server error" });
@@ -245,16 +254,17 @@ const login = async (req, res) => {
   try {
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(400).json({ status: false, message: "Invalid email or password" });
+      return res
+        .status(400)
+        .json({ status: false, message: "Invalid email or password" });
     }
 
     if (!user.isVerify) {
-
       const otp = generateOTP();
       const hashedOtp = await bcrypt.hash(otp, 10);
       const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
 
-      user.otp = hashedOtp;  // Save the hashed OTP
+      user.otp = hashedOtp; // Save the hashed OTP
       user.otpExpiry = otpExpiry; // Save OTP expiry time
       await user.save();
 
@@ -265,7 +275,6 @@ const login = async (req, res) => {
         text: `Your OTP is: ${otp}`,
       });
 
-
       return res.status(200).json({
         status: true,
         message: "Please verify your email to continue.",
@@ -274,25 +283,30 @@ const login = async (req, res) => {
           first_name: user.first_name,
           last_name: user.last_name,
           email: user.email,
-          profilePicture: user.profilePicture ? `${process.env.LIVE_URL}/${user.profilePicture}` : '',
+          profilePicture: user.profilePicture
+            ? `${process.env.LIVE_URL}/${user.profilePicture}`
+            : "",
           isVerify: user.isVerify,
-        }
+        },
       });
     }
 
     if (typeof user.password !== "string") {
-      return res.status(500).json({ status: false, message: "Stored password is invalid." });
+      return res
+        .status(500)
+        .json({ status: false, message: "Stored password is invalid." });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.status(400).json({ status: false, message: "Invalid password" });
+      return res
+        .status(400)
+        .json({ status: false, message: "Invalid password" });
     }
 
     if (!user.deviceTokens) {
       user.deviceTokens = [];
     }
-
 
     if (deviceToken) {
       if (!user.deviceTokens.includes(deviceToken)) {
@@ -316,7 +330,9 @@ const login = async (req, res) => {
         first_name: user.first_name,
         last_name: user.last_name,
         email: user.email,
-        profilePicture: user.profilePicture ? `${process.env.LIVE_URL}/${user.profilePicture}` : '',
+        profilePicture: user.profilePicture
+          ? `${process.env.LIVE_URL}/${user.profilePicture}`
+          : "",
         isVerify: user.isVerify,
         deviceTokens: user.deviceTokens,
       },
@@ -330,13 +346,15 @@ const login = async (req, res) => {
 const uploadProfilePicture = async (req, res) => {
   try {
     if (!req.file) {
-      return res.status(400).json({ status: false, message: "No file uploaded" });
+      return res
+        .status(400)
+        .json({ status: false, message: "No file uploaded" });
     }
 
     const userId = req.user.id;
 
     // Normalize the path: convert backslashes -> forward slashes & remove leading slash
-    const cleanPath = req.file.path.replace(/\\/g, '/').replace(/^\/+/, '');
+    const cleanPath = req.file.path.replace(/\\/g, "/").replace(/^\/+/, "");
 
     const updatedUser = await User.findByIdAndUpdate(
       userId,
@@ -348,8 +366,9 @@ const uploadProfilePicture = async (req, res) => {
       return res.status(404).json({ status: false, message: "User not found" });
     }
 
-    const profilePictureUrl =
-      `${process.env.LIVE_URL.replace(/\/$/, '')}/${updatedUser.profilePicture}`;
+    const profilePictureUrl = `${process.env.LIVE_URL.replace(/\/$/, "")}/${
+      updatedUser.profilePicture
+    }`;
 
     res.status(200).json({
       status: true,
@@ -362,7 +381,6 @@ const uploadProfilePicture = async (req, res) => {
   }
 };
 
-
 const forgotPassword = async (req, res, next) => {
   try {
     const { email } = req.body;
@@ -370,7 +388,9 @@ const forgotPassword = async (req, res, next) => {
 
     if (!email) {
       console.error("Error: Email is required");
-      return res.status(400).json({ status: false, message: "Email is required" });
+      return res
+        .status(400)
+        .json({ status: false, message: "Email is required" });
     }
 
     const user = await User.findOne({ email });
@@ -387,10 +407,11 @@ const forgotPassword = async (req, res, next) => {
     user.isOtpVerified = false;
     await user.save();
 
-
     if (!/\S+@\S+\.\S+/.test(email)) {
       console.error("Error: Invalid email format:", email);
-      return res.status(400).json({ status: false, message: "Invalid email format" });
+      return res
+        .status(400)
+        .json({ status: false, message: "Invalid email format" });
     }
     console.log("Sending OTP to email:", email);
 
@@ -444,7 +465,9 @@ const resetPassword = async (req, res, next) => {
     // }
 
     if (newPassword !== confirmPassword) {
-      return res.status(400).json({ status: false, message: "Passwords do not match." });
+      return res
+        .status(400)
+        .json({ status: false, message: "Passwords do not match." });
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
@@ -461,6 +484,26 @@ const resetPassword = async (req, res, next) => {
   }
 };
 
+const deleteAccount = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    console.log("userId", userId);
+
+    const deletedUser = await User.findByIdAndDelete(userId);
+    if (!deletedUser) {
+      return res.status(404).json({ status: false, message: "User not found" });
+    }
+    res.status(200).json({
+      status: true,
+      message: "Account deleted successfully",
+    });
+  } catch (error) {
+    console.error("Error deleting account:", error);
+    res.status(500).json({ status: false, message: "Internal Server Error!" });
+  }
+};
+
 module.exports = {
   signup,
   verifyOtp,
@@ -471,4 +514,5 @@ module.exports = {
   forgotPassword,
   verifyResetPassword,
   resetPassword,
+  deleteAccount,
 };

@@ -1,5 +1,5 @@
 const express = require('express');
-const { login,signup,verifyOtp,resendOtp, createPassword, uploadProfilePicture ,forgotPassword, verifyResetPassword, resetPassword} = require('../controllers/authController');
+const { login,signup,verifyOtp,resendOtp, createPassword, uploadProfilePicture ,forgotPassword, verifyResetPassword, resetPassword,deleteAccount} = require('../controllers/authController');
 const { signupValidationRules, verifyOtpValidationRules, createPasswordValidationRules, resendOtpValidationRules, loginValidationRules, emailValidationRules, handleValidationResult ,resetPasswordRules } = require("../validators/validation");
 const router = express.Router();
 const authenticateUser = require('../middleware/authmiddleware');
@@ -14,5 +14,5 @@ router.post('/upload-profile-picture', authenticateUser, upload, handleMulterErr
 router.post("/forgot-password", emailValidationRules, handleValidationResult,  forgotPassword)
 router.post("/verify-reset-otp", verifyOtpValidationRules, verifyResetPassword)
 router.post("/reset-password",resetPasswordRules, resetPassword);
-
+router.post("/delete-account", authenticateUser, deleteAccount);
 module.exports = router;
