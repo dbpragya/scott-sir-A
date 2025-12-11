@@ -1,8 +1,7 @@
-// VALIDATION DONE
-
 const { body, validationResult } = require("express-validator");
 const bcrypt = require("bcryptjs");
 const User = require("../models/User");
+const Event = require("../models/Event");
 const sendEmail = require("../utils/sendEmail");
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
@@ -12,7 +11,6 @@ function generateOTP() {
   return Math.floor(1000 + Math.random() * 9000).toString(); // Generates 4-digit OTP
 }
 
-// Validation Done
 const signup = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -68,7 +66,7 @@ const signup = async (req, res) => {
         subject: "Confirm your email",
         text: `Your OTP is: ${otp}`,
       });
-      console.log(`Email sent successfully to: ${newUser.email}`);
+      // console.log(`Email sent successfully to: ${newUser.email}`);
     } catch (emailError) {
       console.error(`Failed to send email to ${newUser.email}:`, emailError);
     }
@@ -148,7 +146,7 @@ const verifyOtp = async (req, res) => {
   }
 };
 
-// Validation Done
+
 const createPassword = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -239,7 +237,7 @@ const resendOtp = async (req, res) => {
   }
 };
 
-// Validation Done
+
 const login = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -264,8 +262,8 @@ const login = async (req, res) => {
       const hashedOtp = await bcrypt.hash(otp, 10);
       const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
 
-      user.otp = hashedOtp; // Save the hashed OTP
-      user.otpExpiry = otpExpiry; // Save OTP expiry time
+      user.otp = hashedOtp; 
+      user.otpExpiry = otpExpiry; 
       await user.save();
 
       // Send verification email with OTP
@@ -490,6 +488,11 @@ const deleteAccount = async (req, res) => {
 
     console.log("userId", userId);
 
+    // Delete all events created by this user
+    await Event.deleteMany({ createdBy: userId });
+    console.log("Events created by user deleted");
+
+    // Delete the user
     const deletedUser = await User.findByIdAndDelete(userId);
     if (!deletedUser) {
       return res.status(404).json({ status: false, message: "User not found" });
