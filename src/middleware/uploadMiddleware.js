@@ -25,13 +25,13 @@ const fileFilter = (req, file, cb) => {
 const upload = multer({
   storage: storage,
   fileFilter: fileFilter,
-  limits: { fileSize: 2 * 1024 * 1024 },  // 2MB file size limit
+  limits: { fileSize: 5 * 1024 * 1024 },  // 2MB file size limit
 }).single('profilePicture');
 
 function handleMulterError(err, req, res, next) {
   if (err instanceof multer.MulterError) {
     if (err.code === 'LIMIT_FILE_SIZE') {
-      return res.status(400).json({status: false, message: 'File size exceeds the 2MB limit!' });
+      return res.status(400).json({status: false, message: 'File size exceeds the 5MB limit!' });
     }
     return res.status(400).json({status: false, message: `Multer message: ${err.message}` });
   } else if (err) {
