@@ -1,9 +1,9 @@
-const admin = require('../config/firebase');
-const User = require('../models/User');
+const admin = require("../config/firebase");
+const User = require("../models/User");
 
 const stringifyDataValues = (data = {}) =>
   Object.entries(data).reduce((acc, [key, value]) => {
-    acc[key] = value === undefined || value === null ? '' : String(value);
+    acc[key] = value === undefined || value === null ? "" : String(value);
     return acc;
   }, {});
 
@@ -32,10 +32,27 @@ async function sendPushNotification({
 }) {
   const targetUser =
     preloadedUser ||
-    (userId ? await User.findById(userId).select('deviceTokens allNotifications') : null);
+    (userId
+      ? await User.findById(userId).select("deviceTokens allNotifications")
+      : null);
 
-  if (!targetUser || !targetUser.deviceTokens?.length) {
-    return { skipped: true, reason: 'NO_DEVICE_TOKENS' };
+  // if (!targetUser || !targetUser.deviceTokens?.length) {
+  //   return { skipped: true, reason: 'NO_DEVICE_TOKENS' };
+  // }
+  if (!targetUser) {
+    return { skipped: true, reason: "USER_NOT_FOUND" };
+  }
+
+  // ❌ If user disabled all notifications → skip
+  if (targetUser.allNotifications === false) {
+    console.log("[NotificationService] User disabled notifications", {
+      userId: targetUser._id,
+    });
+    return { skipped: true, reason: "NOTIFICATIONS_DISABLED" };
+  }
+
+  if (!targetUser.deviceTokens?.length) {
+    return { skipped: true, reason: "NO_DEVICE_TOKENS" };
   }
 
   const payload = {
@@ -46,24 +63,27 @@ async function sendPushNotification({
     apns,
   };
 
-  console.log('[NotificationService] Sending push notification', {
+  console.log("[NotificationService] Sending push notification", {
     userId: targetUser._id,
     tokenCount: targetUser.deviceTokens.length,
     tokens: targetUser.deviceTokens,
     title,
     body,
-    data: payload.data
+    data: payload.data,
   });
 
   const response = await admin.messaging().sendEachForMulticast(payload);
-  const invalidTokens = collectInvalidTokens(response.responses, targetUser.deviceTokens);
+  const invalidTokens = collectInvalidTokens(
+    response.responses,
+    targetUser.deviceTokens
+  );
   await removeInvalidTokens(targetUser, invalidTokens);
 
-  console.log('[NotificationService] Push result', {
+  console.log("[NotificationService] Push result", {
     userId: targetUser._id,
     successCount: response.successCount,
     failureCount: response.failureCount,
-    invalidTokens
+    invalidTokens,
   });
 
   return {
@@ -76,4 +96,3 @@ async function sendPushNotification({
 module.exports = {
   sendPushNotification,
 };
-
